@@ -32,6 +32,7 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
+import android.os.Build;
 import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
@@ -73,7 +74,7 @@ public class USBMonitor {
     /**
      * コールバックをワーカースレッドで呼び出すためのハンドラー
      */
-    private Handler mAsyncHandler;
+    private final Handler mAsyncHandler;
     private volatile boolean destroyed;
 
     /**
@@ -415,7 +416,7 @@ public class USBMonitor {
     /**
      * BroadcastReceiver for USB permission
      */
-    private BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
 
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -458,7 +459,7 @@ public class USBMonitor {
     /**
      * periodically check connected devices and if it changed, call onAttach
      */
-    private Runnable mDeviceCheckRunnable = new Runnable() {
+    private final Runnable mDeviceCheckRunnable = new Runnable() {
         @Override
         public void run() {
             if (destroyed) return;
@@ -491,22 +492,19 @@ public class USBMonitor {
     private void processConnect(final UsbDevice device) {
         if (destroyed) return;
         updatePermission(device, true);
-        mAsyncHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                if (DEBUG) Log.v(TAG, "processConnect:device=" + device);
-                boolean createNew;
-                UsbControlBlock ctrlBlock = mCtrlBlocks.get(device);
-                if (ctrlBlock == null) {
-                    ctrlBlock = new UsbControlBlock(USBMonitor.this, device);
-                    mCtrlBlocks.put(device, ctrlBlock);
-                    createNew = true;
-                } else {
-                    createNew = false;
-                }
-                if (mOnDeviceConnectListener != null) {
-                    mOnDeviceConnectListener.onConnect(device, ctrlBlock, createNew);
-                }
+        mAsyncHandler.post(() -> {
+            if (DEBUG) Log.v(TAG, "processConnect:device=" + device);
+            boolean createNew;
+            UsbControlBlock ctrlBlock = mCtrlBlocks.get(device);
+            if (ctrlBlock == null) {
+                ctrlBlock = new UsbControlBlock(USBMonitor.this, device);
+                mCtrlBlocks.put(device, ctrlBlock);
+                createNew = true;
+            } else {
+                createNew = false;
+            }
+            if (mOnDeviceConnectListener != null) {
+                mOnDeviceConnectListener.onConnect(device, ctrlBlock, createNew);
             }
         });
     }
@@ -516,12 +514,7 @@ public class USBMonitor {
         if (DEBUG) Log.v(TAG, "processCancel:");
         updatePermission(device, false);
         if (mOnDeviceConnectListener != null) {
-            mAsyncHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    mOnDeviceConnectListener.onCancel(device);
-                }
-            });
+            mAsyncHandler.post(() -> mOnDeviceConnectListener.onCancel(device));
         }
     }
 
@@ -529,12 +522,7 @@ public class USBMonitor {
         if (destroyed) return;
         if (DEBUG) Log.v(TAG, "processAttach:");
         if (mOnDeviceConnectListener != null) {
-            mAsyncHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    mOnDeviceConnectListener.onAttach(device);
-                }
-            });
+            mAsyncHandler.post(() -> mOnDeviceConnectListener.onAttach(device));
         }
     }
 
@@ -542,12 +530,7 @@ public class USBMonitor {
         if (destroyed) return;
         if (DEBUG) Log.v(TAG, "processDetach:");
         if (mOnDeviceConnectListener != null) {
-            mAsyncHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    mOnDeviceConnectListener.onDetach(device);
-                }
-            });
+            mAsyncHandler.post(() -> mOnDeviceConnectListener.onDetach(device));
         }
     }
 
@@ -605,7 +588,7 @@ public class USBMonitor {
             sb.append("#");    // API >= 21
             sb.append(device.getConfigurationCount());
             sb.append("#");    // API >= 21
-            if (BuildCheck.isMarshmallow()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 sb.append(device.getVersion());
                 sb.append("#");    // API >= 23
             }
@@ -814,7 +797,7 @@ public class USBMonitor {
                 info.product = device.getProductName();
                 info.serial = device.getSerialNumber();
             }
-            if (BuildCheck.isMarshmallow()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 info.usb_version = device.getVersion();
             }
             if ((manager != null) && manager.hasPermission(device)) {
@@ -875,13 +858,13 @@ public class USBMonitor {
      * never reuse the instance when it closed
      */
     public static class UsbControlBlock implements Cloneable {
-        private WeakReference<USBMonitor> mWeakMonitor;
-        private WeakReference<UsbDevice> mWeakDevice;
+        private final WeakReference<USBMonitor> mWeakMonitor;
+        private final WeakReference<UsbDevice> mWeakDevice;
         protected UsbDeviceConnection mConnection;
         protected UsbDeviceInfo mInfo;
-        private int mBusNum;
-        private int mDevNum;
-        private SparseArray<SparseArray<UsbInterface>> mInterfaces = new SparseArray<>();
+        private final int mBusNum;
+        private final int mDevNum;
+        private final SparseArray<SparseArray<UsbInterface>> mInterfaces = new SparseArray<>();
 
         /**
          * this class needs permission to access USB device before constructing

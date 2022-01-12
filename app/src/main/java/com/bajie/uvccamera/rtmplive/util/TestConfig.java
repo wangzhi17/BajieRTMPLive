@@ -9,5 +9,5 @@ public class TestConfig {
     /**
      * 测试推流地址
      */
-    public static final String TEST_URL = "rtmp://119.29.184.33:1935/live/livestream_863134036763822";
+    public static final String TEST_URL = "rtmp://192.168.10.121:1935/live/1";
 }

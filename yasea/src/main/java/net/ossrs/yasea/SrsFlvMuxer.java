@@ -28,18 +28,18 @@ public class SrsFlvMuxer {
     private static final int AUDIO_ALLOC_SIZE = 4 * 1024;
 
     private volatile boolean started = false;
-    private DefaultRtmpPublisher publisher;
+    private final DefaultRtmpPublisher publisher;
 
     private Thread worker;
     private final Object txFrameLock = new Object();
 
-    private SrsFlv flv = new SrsFlv();
+    private final SrsFlv flv = new SrsFlv();
     private boolean needToFindKeyFrame = true;
     private SrsFlvFrame mVideoSequenceHeader;
     private SrsFlvFrame mAudioSequenceHeader;
-    private SrsAllocator mVideoAllocator = new SrsAllocator(VIDEO_ALLOC_SIZE);
-    private SrsAllocator mAudioAllocator = new SrsAllocator(AUDIO_ALLOC_SIZE);
-    private ConcurrentLinkedQueue<SrsFlvFrame> mFlvTagCache = new ConcurrentLinkedQueue<>();
+    private final SrsAllocator mVideoAllocator = new SrsAllocator(VIDEO_ALLOC_SIZE);
+    private final SrsAllocator mAudioAllocator = new SrsAllocator(AUDIO_ALLOC_SIZE);
+    private final ConcurrentLinkedQueue<SrsFlvFrame> mFlvTagCache = new ConcurrentLinkedQueue<>();
 
     private static final int VIDEO_TRACK = 100;
     private static final int AUDIO_TRACK = 101;
@@ -57,7 +57,7 @@ public class SrsFlvMuxer {
      * get cached video frame number in publisher
      */
     public AtomicInteger getVideoFrameCacheNumber() {
-        return publisher == null ? null : publisher.getVideoFrameCacheNumber();
+        return publisher.getVideoFrameCacheNumber();
     }
 
     /**
@@ -67,9 +67,7 @@ public class SrsFlvMuxer {
      * @param height height
      */
     public void setVideoResolution(int width, int height) {
-        if (publisher != null) {
-            publisher.setVideoResolution(width, height);
-        }
+        publisher.setVideoResolution(width, height);
     }
 
     /**
@@ -118,8 +116,9 @@ public class SrsFlvMuxer {
 
         if (frame.isVideo()) {
             if (frame.isKeyFrame()) {
-                if (DEBUG) Log.i(TAG, String.format("worker: send frame type=%d, dts=%d, size=%dB",
-                        frame.type, frame.dts, frame.flvTag.array().length));
+                if (DEBUG)
+                    Log.i(TAG, String.format("worker: send frame type=%d, dts=%d, size=%dB",
+                            frame.type, frame.dts, frame.flvTag.array().length));
             }
             publisher.publishVideoData(frame.flvTag.array(), frame.flvTag.size(), frame.dts);
             mVideoAllocator.release(frame.flvTag);
@@ -134,42 +133,39 @@ public class SrsFlvMuxer {
      */
     public void start(final String rtmpUrl) {
         started = true;
-        worker = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                if (!connect(rtmpUrl)) {
-                    return;
-                }
+        worker = new Thread(() -> {
+            if (!connect(rtmpUrl)) {
+                return;
+            }
 
-                while (!Thread.interrupted()) {
-                    while (!mFlvTagCache.isEmpty()) {
-                        SrsFlvFrame frame = mFlvTagCache.poll();
-                        if (frame != null) {
-                            if (frame.isSequenceHeader()) {
-                                if (frame.isVideo()) {
-                                    mVideoSequenceHeader = frame;
-                                    sendFlvTag(mVideoSequenceHeader);
-                                } else if (frame.isAudio()) {
-                                    mAudioSequenceHeader = frame;
-                                    sendFlvTag(mAudioSequenceHeader);
-                                }
-                            } else {
-                                if (frame.isVideo() && mVideoSequenceHeader != null) {
-                                    sendFlvTag(frame);
-                                } else if (frame.isAudio() && mAudioSequenceHeader != null) {
-                                    sendFlvTag(frame);
-                                }
+            while (!Thread.interrupted()) {
+                while (!mFlvTagCache.isEmpty()) {
+                    SrsFlvFrame frame = mFlvTagCache.poll();
+                    if (frame != null) {
+                        if (frame.isSequenceHeader()) {
+                            if (frame.isVideo()) {
+                                mVideoSequenceHeader = frame;
+                                sendFlvTag(mVideoSequenceHeader);
+                            } else if (frame.isAudio()) {
+                                mAudioSequenceHeader = frame;
+                                sendFlvTag(mAudioSequenceHeader);
+                            }
+                        } else {
+                            if (frame.isVideo() && mVideoSequenceHeader != null) {
+                                sendFlvTag(frame);
+                            } else if (frame.isAudio() && mAudioSequenceHeader != null) {
+                                sendFlvTag(frame);
                             }
                         }
                     }
-                    // Waiting for next frame
-                    synchronized (txFrameLock) {
-                        try {
-                            // isEmpty() may take some time, so we set timeout to detect next frame
-                            txFrameLock.wait(500);
-                        } catch (InterruptedException ie) {
-                            worker.interrupt();
-                        }
+                }
+                // Waiting for next frame
+                synchronized (txFrameLock) {
+                    try {
+                        // isEmpty() may take some time, so we set timeout to detect next frame
+                        txFrameLock.wait(500);
+                    } catch (InterruptedException ie) {
+                        worker.interrupt();
                     }
                 }
             }
@@ -197,12 +193,7 @@ public class SrsFlvMuxer {
         needToFindKeyFrame = true;
         if (DEBUG) Log.i(TAG, "SrsFlvMuxer closed");
         // We should not block the main thread
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                disconnect();
-            }
-        }).start();
+        new Thread(this::disconnect).start();
     }
 
     /**
@@ -441,12 +432,12 @@ public class SrsFlvMuxer {
      * the raw h.264 stream, in annexb.
      */
     private class SrsRawH264Stream {
-        private SrsAnnexBSearch annexB = new SrsAnnexBSearch();
-        private SrsFlvFrameBytes seq_hdr = new SrsFlvFrameBytes();
-        private SrsFlvFrameBytes sps_hdr = new SrsFlvFrameBytes();
-        private SrsFlvFrameBytes sps_bb = new SrsFlvFrameBytes();
-        private SrsFlvFrameBytes pps_hdr = new SrsFlvFrameBytes();
-        private SrsFlvFrameBytes pps_bb = new SrsFlvFrameBytes();
+        private final SrsAnnexBSearch annexB = new SrsAnnexBSearch();
+        private final SrsFlvFrameBytes seq_hdr = new SrsFlvFrameBytes();
+        private final SrsFlvFrameBytes sps_hdr = new SrsFlvFrameBytes();
+        private final SrsFlvFrameBytes sps_bb = new SrsFlvFrameBytes();
+        private final SrsFlvFrameBytes pps_hdr = new SrsFlvFrameBytes();
+        private final SrsFlvFrameBytes pps_bb = new SrsFlvFrameBytes();
 
         public boolean isSps(SrsFlvFrameBytes frame) {
             return frame.size >= 1 && (frame.data.get(0) & 0x1f) == SrsAvcNaluType.SPS;
@@ -674,8 +665,8 @@ public class SrsFlvMuxer {
     private class SrsFlv {
         private int aChannel;
         private int aSample_rate;
-        private SrsRawH264Stream avc = new SrsRawH264Stream();
-        private ArrayList<SrsFlvFrameBytes> iPbs = new ArrayList<>();
+        private final SrsRawH264Stream avc = new SrsRawH264Stream();
+        private final ArrayList<SrsFlvFrameBytes> iPbs = new ArrayList<>();
         private SrsAllocator.Allocation audio_tag;
         private SrsAllocator.Allocation video_tag;
         private ByteBuffer h264_sps;
@@ -728,15 +719,21 @@ public class SrsFlvMuxer {
 
                 // samplingFrequencyIndex; 4 bslbf
                 byte samplingFrequencyIndex = 0x04;
-                if (aSample_rate == SrsCodecAudioSampleRate.R22050) {
-                    samplingFrequencyIndex = 0x07;
-                } else if (aSample_rate == SrsCodecAudioSampleRate.R11025) {
-                    samplingFrequencyIndex = 0x0a;
-                } else if (aSample_rate == SrsCodecAudioSampleRate.R32000) {
-                    samplingFrequencyIndex = 0x05;
-                } else if (aSample_rate == SrsCodecAudioSampleRate.R16000) {
-                    samplingFrequencyIndex = 0x08;
+                switch (aSample_rate){
+                    case SrsCodecAudioSampleRate.R22050:
+                        samplingFrequencyIndex = 0x07;
+                        break;
+                    case SrsCodecAudioSampleRate.R11025:
+                        samplingFrequencyIndex = 0x0a;
+                        break;
+                    case SrsCodecAudioSampleRate.R32000:
+                        samplingFrequencyIndex = 0x05;
+                        break;
+                    case SrsCodecAudioSampleRate.R16000:
+                        samplingFrequencyIndex = 0x08;
+                        break;
                 }
+
                 ch |= (samplingFrequencyIndex >> 1) & 0x07;
                 audio_tag.put(ch, 2);
 
@@ -775,14 +772,17 @@ public class SrsFlvMuxer {
             }
             byte sound_size = 1; // 1 = 16-bit samples
             byte sound_rate = 3; // 44100, 22050, 11025, 5512
-            if (aSample_rate == 22050) {
-                sound_rate = 2;
-            } else if (aSample_rate == 11025) {
-                sound_rate = 1;
-            } else if (aSample_rate == 5512) {
-                sound_rate = 0;
+            switch (aSample_rate){
+                case 22050:
+                    sound_rate = 2;
+                    break;
+                case 11025:
+                    sound_rate = 1;
+                    break;
+                case 5512:
+                    sound_rate = 0;
+                    break;
             }
-
             // for audio frame, there is 1 or 2 bytes header:
             //      1bytes, SoundFormat|SoundRate|SoundSize|SoundType
             //      1bytes, AACPacketType for SoundFormat == 10, 0 is sequence header.

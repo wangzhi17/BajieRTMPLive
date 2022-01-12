@@ -3,8 +3,9 @@
 buildscript {
 
     repositories {
+        maven{ url 'https://maven.aliyun.com/repository/google'}
+        maven{ url 'https://maven.aliyun.com/repository/public'}
         google()
-        jcenter()
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:3.5.0'
@@ -13,8 +14,9 @@ buildscript {
 
 allprojects {
     repositories {
+        maven{ url 'https://maven.aliyun.com/repository/google'}
+        maven{ url 'https://maven.aliyun.com/repository/public'}
         google()
-        jcenter()
         maven { url 'http://raw.github.com/saki4510t/libcommon/master/repository/' }
     }
 }

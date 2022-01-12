@@ -2,6 +2,7 @@ package net.ossrs.yasea;
 
 import android.os.Handler;
 import android.os.Message;
+import android.util.Log;
 
 import java.lang.ref.WeakReference;
 
@@ -9,11 +10,12 @@ import java.lang.ref.WeakReference;
  * Created by leo.ma on 2016/11/4.
  */
 public class SrsEncodeHandler extends Handler {
+    private final String TAG = "SrsEncodeHandler";
     private static final int MSG_ENCODE_NETWORK_WEAK = 0;
     private static final int MSG_ENCODE_NETWORK_RESUME = 1;
     private static final int MSG_ENCODE_ILLEGAL_ARGUMENT_EXCEPTION = 2;
 
-    private WeakReference<SrsEncodeListener> mWeakListener;
+    private final WeakReference<SrsEncodeListener> mWeakListener;
 
     public SrsEncodeHandler(SrsEncodeListener listener) {
         mWeakListener = new WeakReference<>(listener);
@@ -40,16 +42,21 @@ public class SrsEncodeHandler extends Handler {
         if (listener == null) {
             return;
         }
-
-        if (msg.what == MSG_ENCODE_NETWORK_WEAK) {
-            listener.onNetworkWeak();
-        } else if (msg.what == MSG_ENCODE_NETWORK_RESUME) {
-            listener.onNetworkResume();
-        } else if (msg.what == MSG_ENCODE_ILLEGAL_ARGUMENT_EXCEPTION) {
-            listener.onEncodeIllegalArgumentException((IllegalArgumentException) msg.obj);
-        } else {
-            throw new RuntimeException("unknown msg " + msg.what);
+        switch (msg.what) {
+            case MSG_ENCODE_NETWORK_WEAK:
+                listener.onNetworkWeak();
+                break;
+            case MSG_ENCODE_NETWORK_RESUME:
+                listener.onNetworkResume();
+                break;
+            case MSG_ENCODE_ILLEGAL_ARGUMENT_EXCEPTION:
+                listener.onEncodeIllegalArgumentException((IllegalArgumentException) msg.obj);
+                break;
+            default:
+                Log.e(TAG, "其他：" + msg.what);
+                break;
         }
+
     }
 
     public interface SrsEncodeListener {

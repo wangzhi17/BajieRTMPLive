@@ -25,7 +25,7 @@ public class RtmpHandler extends Handler {
     private static final int MSG_RTMP_ILLEGAL_ARGUMENT_EXCEPTION = 11;
     private static final int MSG_RTMP_ILLEGAL_STATE_EXCEPTION = 12;
 
-    private WeakReference<RtmpListener> mWeakListener;
+    private final WeakReference<RtmpListener> mWeakListener;
 
     public RtmpHandler(RtmpListener listener) {
         mWeakListener = new WeakReference<>(listener);
@@ -89,38 +89,52 @@ public class RtmpHandler extends Handler {
     @Override
     public void handleMessage(Message msg) {
         RtmpListener listener = mWeakListener.get();
-        if (listener == null) {
+        if (null == listener) {
             return;
         }
+        switch (msg.what) {
+            case MSG_RTMP_CONNECTING:
+                listener.onRtmpConnecting((String) msg.obj);
+                break;
+            case MSG_RTMP_CONNECTED:
+                listener.onRtmpConnected((String) msg.obj);
+                break;
+            case MSG_RTMP_VIDEO_STREAMING:
+                listener.onRtmpVideoStreaming();
+                break;
+            case MSG_RTMP_AUDIO_STREAMING:
+                listener.onRtmpAudioStreaming();
+                break;
+            case MSG_RTMP_STOPPED:
+                listener.onRtmpStopped();
+                break;
+            case MSG_RTMP_DISCONNECTED:
+                listener.onRtmpDisconnected();
+                break;
+            case MSG_RTMP_VIDEO_FPS_CHANGED:
+                listener.onRtmpVideoFpsChanged((double) msg.obj);
+                break;
+            case MSG_RTMP_VIDEO_BITRATE_CHANGED:
+                listener.onRtmpVideoBitrateChanged((double) msg.obj);
+                break;
+            case MSG_RTMP_AUDIO_BITRATE_CHANGED:
+                listener.onRtmpAudioBitrateChanged((double) msg.obj);
+                break;
+            case MSG_RTMP_SOCKET_EXCEPTION:
+                listener.onRtmpSocketException((SocketException) msg.obj);
+                break;
+            case MSG_RTMP_IO_EXCEPTION:
+                listener.onRtmpIOException((IOException) msg.obj);
+                break;
+            case MSG_RTMP_ILLEGAL_ARGUMENT_EXCEPTION:
+                listener.onRtmpIllegalArgumentException((IllegalArgumentException) msg.obj);
+                break;
+            case MSG_RTMP_ILLEGAL_STATE_EXCEPTION:
+                listener.onRtmpIllegalStateException((IllegalStateException) msg.obj);
+                break;
+            default:
 
-        if (msg.what == MSG_RTMP_CONNECTING) {
-            listener.onRtmpConnecting((String) msg.obj);
-        } else if (msg.what == MSG_RTMP_CONNECTED) {
-            listener.onRtmpConnected((String) msg.obj);
-        } else if (msg.what == MSG_RTMP_VIDEO_STREAMING) {
-            listener.onRtmpVideoStreaming();
-        } else if (msg.what == MSG_RTMP_AUDIO_STREAMING) {
-            listener.onRtmpAudioStreaming();
-        } else if (msg.what == MSG_RTMP_STOPPED) {
-            listener.onRtmpStopped();
-        } else if (msg.what == MSG_RTMP_DISCONNECTED) {
-            listener.onRtmpDisconnected();
-        } else if (msg.what == MSG_RTMP_VIDEO_FPS_CHANGED) {
-            listener.onRtmpVideoFpsChanged((double) msg.obj);
-        } else if (msg.what == MSG_RTMP_VIDEO_BITRATE_CHANGED) {
-            listener.onRtmpVideoBitrateChanged((double) msg.obj);
-        } else if (msg.what == MSG_RTMP_AUDIO_BITRATE_CHANGED) {
-            listener.onRtmpAudioBitrateChanged((double) msg.obj);
-        } else if (msg.what == MSG_RTMP_SOCKET_EXCEPTION) {
-            listener.onRtmpSocketException((SocketException) msg.obj);
-        } else if (msg.what == MSG_RTMP_IO_EXCEPTION) {
-            listener.onRtmpIOException((IOException) msg.obj);
-        } else if (msg.what == MSG_RTMP_ILLEGAL_ARGUMENT_EXCEPTION) {
-            listener.onRtmpIllegalArgumentException((IllegalArgumentException) msg.obj);
-        } else if (msg.what == MSG_RTMP_ILLEGAL_STATE_EXCEPTION) {
-            listener.onRtmpIllegalStateException((IllegalStateException) msg.obj);
-        } else {
-            throw new RuntimeException("unknown msg " + msg.what);
+                break;
         }
     }
 

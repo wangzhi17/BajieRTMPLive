@@ -67,7 +67,7 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
     private USBMonitor usbMonitor;
     private USBMonitor.UsbControlBlock mCtrlBlock;
     private UVCPublisher publisher;
-    private static Handler handler = new Handler();
+    private final Handler handler = new Handler();
     private int flag = 0;
 
     private int currentPreviewWidth;
@@ -117,7 +117,7 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
         initMagicFilterList();
     }
 
-    private USBMonitor.OnDeviceConnectListener onDeviceConnectListener = new USBMonitor.OnDeviceConnectListener() {
+    private final USBMonitor.OnDeviceConnectListener onDeviceConnectListener = new USBMonitor.OnDeviceConnectListener() {
         @Override
         public void onAttach(UsbDevice device) {
             Logger.e("USBMonitor:onAttach");
@@ -127,12 +127,12 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
 
         @Override
         public void onDetach(UsbDevice device) {
-            Logger.e("USBMonitor:onDetach");
+            Logger.v("USBMonitor:onDetach");
         }
 
         @Override
         public void onConnect(UsbDevice device, USBMonitor.UsbControlBlock ctrlBlock, boolean createNew) {
-            Logger.e("USBMonitor:onConnect");
+            Logger.v("USBMonitor:onConnect");
             if (mCtrlBlock == null) {
                 mCtrlBlock = ctrlBlock;
                 runOnUiThread(() -> {
@@ -178,7 +178,7 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
         publisher.setErrorCallback(errorCallback);
     }
 
-    private Runnable runnable = new Runnable() {
+    private final Runnable runnable = new Runnable() {
         @Override
         public void run() {
             if (flag % 2 == 0) {
@@ -190,7 +190,7 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
             tv_info.setText("帧率：");
             tv_info.append(String.format(Locale.CHINESE, "%.2f", publisher.getSamplingFps()));
             tv_info.append("fps");
-            handler.postDelayed(runnable, 1000);
+            handler.postDelayed(runnable, 500);
         }
     };
 
@@ -480,7 +480,7 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
         stopLive();
     }
 
-    private SrsEncodeHandler.SrsEncodeListener srsEncodeListener = new SrsEncodeHandler.SrsEncodeListener() {
+    private final SrsEncodeHandler.SrsEncodeListener srsEncodeListener = new SrsEncodeHandler.SrsEncodeListener() {
         @Override
         public void onNetworkWeak() {
             Logger.e("onNetworkWeak");
@@ -501,15 +501,15 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
         }
     };
 
-    private RtmpHandler.RtmpListener rtmpListener = new RtmpHandler.RtmpListener() {
+    private final RtmpHandler.RtmpListener rtmpListener = new RtmpHandler.RtmpListener() {
         @Override
         public void onRtmpConnecting(String msg) {
-            Logger.e("onRtmpConnecting:" + msg);
+            Logger.v("onRtmpConnecting:" + msg);
         }
 
         @Override
         public void onRtmpConnected(String msg) {
-            Logger.e("onRtmpConnected:" + msg);
+            Logger.v("onRtmpConnected:" + msg);
         }
 
         @Override
@@ -524,12 +524,12 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
 
         @Override
         public void onRtmpStopped() {
-            Logger.e("onRtmpStopped");
+            Logger.v("onRtmpStopped");
         }
 
         @Override
         public void onRtmpDisconnected() {
-            Logger.e("onRtmpDisconnected");
+            Logger.v("onRtmpDisconnected");
         }
 
         @Override
@@ -582,7 +582,7 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
         }
     };
 
-    private SrsRecordHandler.SrsRecordListener srsRecordListener = new SrsRecordHandler.SrsRecordListener() {
+    private final SrsRecordHandler.SrsRecordListener srsRecordListener = new SrsRecordHandler.SrsRecordListener() {
         @Override
         public void onRecordPause() {
             Logger.e("onRecordPause");
@@ -616,7 +616,7 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
         }
     };
 
-    private UVCCameraGLSurfaceView.ErrorCallback errorCallback = error -> handleException();
+    private final UVCCameraGLSurfaceView.ErrorCallback errorCallback = error -> handleException();
 
 
     @Override

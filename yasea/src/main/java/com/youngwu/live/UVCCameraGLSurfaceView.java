@@ -40,16 +40,16 @@ public class UVCCameraGLSurfaceView extends GLSurfaceView implements GLSurfaceVi
     private int mPreviewHeight;
     private volatile boolean mIsEncoding;
     private float mInputAspectRatio;
-    private float[] mProjectionMatrix = new float[16];
-    private float[] mSurfaceMatrix = new float[16];
-    private float[] mTransformMatrix = new float[16];
+    private final float[] mProjectionMatrix = new float[16];
+    private final float[] mSurfaceMatrix = new float[16];
+    private final float[] mTransformMatrix = new float[16];
 
     private UVCCamera uvcCamera;
     private ByteBuffer mGLPreviewBuffer;
 
     private Thread worker;
     private final Object writeLock = new Object();
-    private ConcurrentLinkedQueue<IntBuffer> mGLIntBufferCache = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<IntBuffer> mGLIntBufferCache = new ConcurrentLinkedQueue<>();
     private PreviewCallback mPrevCb;
     private ErrorCallback errorCallback;
 
@@ -75,12 +75,7 @@ public class UVCCameraGLSurfaceView extends GLSurfaceView implements GLSurfaceVi
 
         mOESTextureId = OpenGLUtils.getExternalOESTextureID();
         surfaceTexture = new SurfaceTexture(mOESTextureId);
-        surfaceTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
-            @Override
-            public void onFrameAvailable(SurfaceTexture surfaceTexture) {
-                requestRender();
-            }
-        });
+        surfaceTexture.setOnFrameAvailableListener(surfaceTexture -> requestRender());
 
         // For camera preview on activity create
         if (uvcCamera != null) {
@@ -175,18 +170,15 @@ public class UVCCameraGLSurfaceView extends GLSurfaceView implements GLSurfaceVi
     }
 
     public void setFilter(final MagicFilterType type) {
-        queueEvent(new Runnable() {
-            @Override
-            public void run() {
-                if (magicFilter != null) {
-                    magicFilter.destroy();
-                }
-                magicFilter = MagicFilterFactory.initFilters(type);
-                if (magicFilter != null) {
-                    magicFilter.init(getContext().getApplicationContext());
-                    magicFilter.onInputSizeChanged(mPreviewWidth, mPreviewHeight);
-                    magicFilter.onDisplaySizeChanged(mSurfaceWidth, mSurfaceHeight);
-                }
+        queueEvent(() -> {
+            if (magicFilter != null) {
+                magicFilter.destroy();
+            }
+            magicFilter = MagicFilterFactory.initFilters(type);
+            if (magicFilter != null) {
+                magicFilter.init(getContext().getApplicationContext());
+                magicFilter.onInputSizeChanged(mPreviewWidth, mPreviewHeight);
+                magicFilter.onDisplaySizeChanged(mSurfaceWidth, mSurfaceHeight);
             }
         });
         requestRender();

@@ -42,12 +42,12 @@ public class SrsEncoder {
     public static final int aSampleRate = SrsLiveConfig.AUDIO_SAMPLE_RATE;//音频采样率
     public static int aChannelConfig = AudioFormat.CHANNEL_IN_STEREO;//立体声通道
 
-    private SrsEncodeHandler mHandler;
+    private final SrsEncodeHandler mHandler;
 
     private SrsFlvMuxer flvMuxer;
     private SrsMp4Muxer mp4Muxer;
 
-    private MediaCodecInfo vMci;
+    private final MediaCodecInfo vMci;
     private MediaCodec vEncoder;
     private MediaCodec aEncoder;
 
