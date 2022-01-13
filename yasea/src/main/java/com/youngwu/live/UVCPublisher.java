@@ -41,13 +41,10 @@ public class UVCPublisher {
 
     public UVCPublisher(UVCCameraGLSurfaceView view) {
         mUVVCCameraView = view;
-        mUVVCCameraView.setPreviewCallback(new UVCCameraGLSurfaceView.PreviewCallback() {
-            @Override
-            public void onGetRgbaFrame(byte[] data, int width, int height) {
-                calcSamplingFps();
-                if (!sendAudioOnly) {
-                    mEncoder.onGetRgbaFrame(data, width, height);
-                }
+        mUVVCCameraView.setPreviewCallback((data, width, height) -> {
+            calcSamplingFps();
+            if (!sendAudioOnly) {
+                mEncoder.onGetRgbaFrame(data, width, height);
             }
         });
     }

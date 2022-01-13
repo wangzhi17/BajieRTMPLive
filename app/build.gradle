@@ -1,8 +1,8 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 28
-    buildToolsVersion '28.0.3'
+    compileSdkVersion 29
+    buildToolsVersion '29.0.3'
 
     defaultConfig {
         applicationId "com.bajie.uvccamera.rtmplive"
@@ -12,15 +12,15 @@ android {
         versionName "1.0.0"
         multiDexEnabled true
         ndk {
-            abiFilters "armeabi-v7a", "arm64-v8a", "x86"
+            abiFilters "armeabi", "armeabi-v7a", "arm64-v8a", "x86"
         }
     }
     signingConfigs {
         release {
-            storeFile file("../bajie.jks")
-            keyAlias "bajie"
-            keyPassword "@bajie"
-            storePassword "@bajie"
+            storeFile file('/Users/wangzhi/Downloads/project/live.jks')
+            keyAlias 'live'
+            keyPassword '123456'
+            storePassword '123456'
         }
     }
     buildTypes {
@@ -43,6 +43,9 @@ android {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation 'androidx.appcompat:appcompat:1.2.0'
+    implementation 'com.google.android.material:material:1.2.1'
+    implementation 'androidx.constraintlayout:constraintlayout:2.0.1'
     implementation 'com.android.support:multidex:1.0.3'
     implementation 'com.hjq:xxpermissions:5.5'
     implementation 'com.orhanobut:logger:2.2.0'

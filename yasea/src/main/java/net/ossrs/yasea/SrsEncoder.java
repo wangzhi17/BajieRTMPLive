@@ -403,9 +403,9 @@ public class SrsEncoder {
                     long pts = System.nanoTime() / 1000 - mPresentTime;
                     aEncoder.queueInputBuffer(inBufferIndex, 0, size, pts, 0);
                 }
-
+                MediaCodec.BufferInfo aEbi = new MediaCodec.BufferInfo();
                 for (; ; ) {
-                    MediaCodec.BufferInfo aEbi = new MediaCodec.BufferInfo();
+
                     int outBufferIndex = aEncoder.dequeueOutputBuffer(aEbi, 0);
                     if (outBufferIndex >= 0) {
                         ByteBuffer bb = outBuffers[outBufferIndex];
@@ -428,9 +428,9 @@ public class SrsEncoder {
                     long pts = System.nanoTime() / 1000 - mPresentTime;
                     aEncoder.queueInputBuffer(inBufferIndex, 0, size, pts, 0);
                 }
-
+                MediaCodec.BufferInfo aEbi = new MediaCodec.BufferInfo();
                 for (; ; ) {
-                    MediaCodec.BufferInfo aEbi = new MediaCodec.BufferInfo();
+
                     int outBufferIndex = aEncoder.dequeueOutputBuffer(aEbi, 0);
                     if (outBufferIndex >= 0) {
                         ByteBuffer bb = aEncoder.getOutputBuffer(outBufferIndex);

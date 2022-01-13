@@ -1,6 +1,8 @@
 package com.bajie.uvccamera.rtmplive.application;
 
-import android.support.multidex.MultiDexApplication;
+
+
+import androidx.multidex.MultiDexApplication;
 
 import com.orhanobut.logger.AndroidLogAdapter;
 import com.orhanobut.logger.Logger;
