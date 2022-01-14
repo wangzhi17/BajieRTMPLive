@@ -57,19 +57,19 @@ public class USBMonitor {
     private static final String TAG = "USBMonitor";
 
     private static final String ACTION_USB_PERMISSION_BASE = "com.serenegiant.USB_PERMISSION.";
-    private String ACTION_USB_PERMISSION = ACTION_USB_PERMISSION_BASE + hashCode();
+    private final String ACTION_USB_PERMISSION = ACTION_USB_PERMISSION_BASE ;
 
     /**
      * openしているUsbControlBlock
      */
-    private ConcurrentHashMap<UsbDevice, UsbControlBlock> mCtrlBlocks = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UsbDevice, UsbControlBlock> mCtrlBlocks = new ConcurrentHashMap<>();
     private final SparseArray<WeakReference<UsbDevice>> mHasPermissions = new SparseArray<>();
 
-    private WeakReference<Context> mWeakContext;
-    private UsbManager mUsbManager;
-    private OnDeviceConnectListener mOnDeviceConnectListener;
+    private final WeakReference<Context> mWeakContext;
+    private final UsbManager mUsbManager;
+    private final OnDeviceConnectListener mOnDeviceConnectListener;
     private PendingIntent mPermissionIntent = null;
-    private List<DeviceFilter> mDeviceFilters = new ArrayList<>();
+    private final List<DeviceFilter> mDeviceFilters = new ArrayList<>();
 
     /**
      * コールバックをワーカースレッドで呼び出すためのハンドラー
@@ -162,6 +162,7 @@ public class USBMonitor {
                 mPermissionIntent = PendingIntent.getBroadcast(context, 0, new Intent(ACTION_USB_PERMISSION), 0);
                 IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
                 // ACTION_USB_DEVICE_ATTACHED never comes on some devices so it should not be added here
+                filter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
                 filter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
                 context.registerReceiver(mUsbReceiver, filter);
             }
@@ -419,35 +420,40 @@ public class USBMonitor {
     private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
 
         @Override
-        public void onReceive(Context context, Intent intent) {
+        public void onReceive(final Context context, final Intent intent) {
             if (destroyed) return;
-            String action = intent.getAction();
-            if (ACTION_USB_PERMISSION.equals(action)) {
-                // when received the result of requesting USB permission
-                synchronized (USBMonitor.this) {
-                    UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                    if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                        if (device != null) {
-                            // get permission, call onConnect
-                            processConnect(device);
+            final String action = intent.getAction();
+            final UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+            assert action != null;
+            switch (action) {
+                case ACTION_USB_PERMISSION:
+                    synchronized (USBMonitor.this) {
+                        if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+                            if (device != null) {
+                                // get permission, call onConnect
+                                processConnect(device);
+                            }
+                        } else {
+                            // failed to get permission
+                            processCancel(device);
                         }
-                    } else {
-                        // failed to get permission
-                        processCancel(device);
                     }
-                }
-            } else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
-                // when device removed
-                UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                if (device != null) {
-                    UsbControlBlock ctrlBlock = mCtrlBlocks.remove(device);
-                    if (ctrlBlock != null) {
-                        // cleanup
-                        ctrlBlock.close();
+                    break;
+                case UsbManager.ACTION_USB_DEVICE_ATTACHED:
+                    updatePermission(device, hasPermission(device));
+                    processAttach(device);
+                    break;
+                case UsbManager.ACTION_USB_DEVICE_DETACHED:
+                    if (device != null) {
+                        UsbControlBlock ctrlBlock = mCtrlBlocks.remove(device);
+                        if (ctrlBlock != null) {
+                            // cleanup
+                            ctrlBlock.close();
+                        }
+                        mDeviceCounts = 0;
+                        processDetach(device);
                     }
-                    mDeviceCounts = 0;
-                    processDetach(device);
-                }
+                    break;
             }
         }
     };

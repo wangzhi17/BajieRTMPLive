@@ -45,7 +45,7 @@ public class RtmpConnection implements RtmpPublisher {
     private static final String TAG = "RtmpConnection";
     private static final Pattern rtmpUrlPattern = Pattern.compile("^rtmp://([^/:]+)(:(\\d+))*/([^/]+)(/(.*))*$");
 
-    private RtmpHandler mHandler;
+    private final RtmpHandler mHandler;
     private String appName;
     private String streamName;
     private String publishType;
@@ -64,7 +64,7 @@ public class RtmpConnection implements RtmpPublisher {
     private volatile boolean publishPermitted = false;
     private final Object connectingLock = new Object();
     private final Object publishLock = new Object();
-    private AtomicInteger videoFrameCacheNumber = new AtomicInteger(0);
+    private final AtomicInteger videoFrameCacheNumber = new AtomicInteger(0);
     private int currentStreamId = 0;
     private int transactionIdCounter = 0;
     private AmfString serverIpAddr;

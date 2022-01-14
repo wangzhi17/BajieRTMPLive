@@ -21,7 +21,7 @@ public class SrsPublisher {
     private static AutomaticGainControl agc;
     private byte[] mPcmBuffer = new byte[4096];
     private Thread aWorker;
-    private SrsCameraGLSurfaceView mCameraView;
+    private final SrsCameraGLSurfaceView mCameraView;
     private boolean sendVideoOnly = false;
     private boolean sendAudioOnly = false;
     private int videoFrameCount;
@@ -34,13 +34,10 @@ public class SrsPublisher {
 
     public SrsPublisher(SrsCameraGLSurfaceView view) {
         mCameraView = view;
-        mCameraView.setPreviewCallback(new SrsCameraGLSurfaceView.PreviewCallback() {
-            @Override
-            public void onGetRgbaFrame(byte[] data, int width, int height) {
-                calcSamplingFps();
-                if (!sendAudioOnly) {
-                    mEncoder.onGetRgbaFrame(data, width, height);
-                }
+        mCameraView.setPreviewCallback((data, width, height) -> {
+            calcSamplingFps();
+            if (!sendAudioOnly) {
+                mEncoder.onGetRgbaFrame(data, width, height);
             }
         });
     }
@@ -113,32 +110,29 @@ public class SrsPublisher {
             }
         }
 
-        aWorker = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO);
-                try {
-                    mic.startRecording();
-                } catch (Exception e) {
-                    Log.e(TAG, "AudioRecord startRecording failed.");
-                }
-                while (!Thread.interrupted()) {
-                    if (sendVideoOnly) {
-                        mEncoder.onGetPcmFrame(mPcmBuffer, mPcmBuffer.length);
-                        try {
-                            // This is trivial...
-                            Thread.sleep(200);
-                        } catch (InterruptedException e) {
-                            break;
-                        }
-                    } else {
-                        if (mic != null) {
-                            int size = mic.read(mPcmBuffer, 0, mPcmBuffer.length);
-                            if (size > 0) {
-                                mEncoder.onGetPcmFrame(mPcmBuffer, size);
-                            } else {
-                                Log.e(TAG, "AudioRecord reading failed , code = " + size);
-                            }
+        aWorker = new Thread(() -> {
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO);
+            try {
+                mic.startRecording();
+            } catch (Exception e) {
+                Log.e(TAG, "AudioRecord startRecording failed.");
+            }
+            while (!Thread.interrupted()) {
+                if (sendVideoOnly) {
+                    mEncoder.onGetPcmFrame(mPcmBuffer, mPcmBuffer.length);
+                    try {
+                        // This is trivial...
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                } else {
+                    if (mic != null) {
+                        int size = mic.read(mPcmBuffer, 0, mPcmBuffer.length);
+                        if (size > 0) {
+                            mEncoder.onGetPcmFrame(mPcmBuffer, size);
+                        } else {
+                            Log.e(TAG, "AudioRecord reading failed , code = " + size);
                         }
                     }
                 }
@@ -246,8 +240,10 @@ public class SrsPublisher {
         }
     }
 
-    public boolean startRecord(String recPath) {
-        return mMp4Muxer != null && mMp4Muxer.record(new File(recPath));
+    public void startRecord(String recPath) {
+        if (mMp4Muxer != null) {
+            mMp4Muxer.record(new File(recPath));
+        }
     }
 
     public void resumeRecord() {

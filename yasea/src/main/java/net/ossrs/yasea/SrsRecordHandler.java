@@ -17,7 +17,7 @@ public class SrsRecordHandler extends Handler {
     private static final int MSG_RECORD_ILLEGAL_ARGUMENT_EXCEPTION = 4;
     private static final int MSG_RECORD_IO_EXCEPTION = 5;
 
-    private WeakReference<SrsRecordListener> mWeakListener;
+    private final WeakReference<SrsRecordListener> mWeakListener;
 
     public SrsRecordHandler(SrsRecordListener listener) {
         mWeakListener = new WeakReference<>(listener);

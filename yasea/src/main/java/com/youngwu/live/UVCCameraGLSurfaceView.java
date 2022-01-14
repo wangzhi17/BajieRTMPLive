@@ -185,25 +185,22 @@ public class UVCCameraGLSurfaceView extends GLSurfaceView implements GLSurfaceVi
     }
 
     public void enableEncoding() {
-        worker = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while (!Thread.interrupted()) {
-                    while (!mGLIntBufferCache.isEmpty()) {
-                        IntBuffer picture = mGLIntBufferCache.poll();
-                        if (picture != null && mGLPreviewBuffer != null && mPrevCb != null) {
-                            mGLPreviewBuffer.asIntBuffer().put(picture.array());
-                            mPrevCb.onGetRgbaFrame(mGLPreviewBuffer.array(), mPreviewWidth, mPreviewHeight);
-                        }
+        worker = new Thread(() -> {
+            while (!Thread.interrupted()) {
+                while (!mGLIntBufferCache.isEmpty()) {
+                    IntBuffer picture = mGLIntBufferCache.poll();
+                    if (picture != null && mGLPreviewBuffer != null && mPrevCb != null) {
+                        mGLPreviewBuffer.asIntBuffer().put(picture.array());
+                        mPrevCb.onGetRgbaFrame(mGLPreviewBuffer.array(), mPreviewWidth, mPreviewHeight);
                     }
-                    // Waiting for next frame
-                    synchronized (writeLock) {
-                        try {
-                            // isEmpty() may take some time, so we set timeout to detect next frame
-                            writeLock.wait(500);
-                        } catch (InterruptedException ie) {
-                            worker.interrupt();
-                        }
+                }
+                // Waiting for next frame
+                synchronized (writeLock) {
+                    try {
+                        // isEmpty() may take some time, so we set timeout to detect next frame
+                        writeLock.wait(500);
+                    } catch (InterruptedException ie) {
+                        worker.interrupt();
                     }
                 }
             }

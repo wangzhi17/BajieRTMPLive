@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class DefaultRtmpPublisher implements RtmpPublisher {
 
-    private RtmpConnection rtmpConnection;
+    private final RtmpConnection rtmpConnection;
 
     public DefaultRtmpPublisher(RtmpHandler handler) {
         rtmpConnection = new RtmpConnection(handler);

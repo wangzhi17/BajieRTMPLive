@@ -12,6 +12,8 @@ import android.media.MediaRecorder;
 import android.os.Build;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -158,7 +160,7 @@ public class SrsEncoder {
             e.printStackTrace();
             return false;
         }
-
+        //vEncoder.setCallback(callback);
         // setup the vEncoder.
         // Note: landscape to portrait, 90 degree rotation, so we need to switch width and height in configuration
         MediaFormat videoFormat = MediaFormat.createVideoFormat(vCodec, vOutWidth, vOutHeight);
@@ -177,6 +179,29 @@ public class SrsEncoder {
         aEncoder.start();
         return true;
     }
+
+    private final MediaCodec.Callback callback = new MediaCodec.Callback() {
+        @Override
+        public void onInputBufferAvailable(@NonNull MediaCodec mediaCodec, int i) {
+            ByteBuffer inputBuffer = vEncoder.getInputBuffer(i);
+            //vEncoder.queueInputBuffer(i,0,);
+        }
+
+        @Override
+        public void onOutputBufferAvailable(@NonNull MediaCodec mediaCodec, int i, @NonNull MediaCodec.BufferInfo bufferInfo) {
+
+        }
+
+        @Override
+        public void onError(@NonNull MediaCodec mediaCodec, @NonNull MediaCodec.CodecException e) {
+
+        }
+
+        @Override
+        public void onOutputFormatChanged(@NonNull MediaCodec mediaCodec, @NonNull MediaFormat mediaFormat) {
+
+        }
+    };
 
     public void pause() {
         mPauseTime = System.nanoTime() / 1000;
@@ -308,53 +333,33 @@ public class SrsEncoder {
         if (vEncoder == null) {
             return;
         }
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.LOLLIPOP) {
-            ByteBuffer[] inBuffers = vEncoder.getInputBuffers();
-            ByteBuffer[] outBuffers = vEncoder.getOutputBuffers();
+        MediaCodec.BufferInfo vEbi = new MediaCodec.BufferInfo();
 
-            int inBufferIndex = vEncoder.dequeueInputBuffer(-1);
-            if (inBufferIndex >= 0) {
-                ByteBuffer bb = inBuffers[inBufferIndex];
-                bb.clear();
-                bb.put(yuvFrame, 0, yuvFrame.length);
-                vEncoder.queueInputBuffer(inBufferIndex, 0, yuvFrame.length, pts, 0);
-            }
+        int inBufferIndex = vEncoder.dequeueInputBuffer(-1);
+        if (inBufferIndex >= 0) {
+            ByteBuffer bb = vEncoder.getInputBuffer(inBufferIndex);
 
-            for (; ; ) {
-                MediaCodec.BufferInfo vEbi = new MediaCodec.BufferInfo();
-                int outBufferIndex = vEncoder.dequeueOutputBuffer(vEbi, 0);
-                if (outBufferIndex >= 0) {
-                    ByteBuffer bb = outBuffers[outBufferIndex];
-                    onEncodedAnnexBFrame(bb, vEbi);
-                    vEncoder.releaseOutputBuffer(outBufferIndex, false);
-                } else {
-                    break;
-                }
-            }
-        } else {
-            int inBufferIndex = vEncoder.dequeueInputBuffer(-1);
-            if (inBufferIndex >= 0) {
-                ByteBuffer bb = vEncoder.getInputBuffer(inBufferIndex);
-                if (bb != null) {
-                    bb.put(yuvFrame, 0, yuvFrame.length);
-                }
-                vEncoder.queueInputBuffer(inBufferIndex, 0, yuvFrame.length, pts, 0);
-            }
+            assert bb != null;
+            bb.put(yuvFrame, 0, yuvFrame.length);
 
-            for (; ; ) {
-                MediaCodec.BufferInfo vEbi = new MediaCodec.BufferInfo();
-                int outBufferIndex = vEncoder.dequeueOutputBuffer(vEbi, 0);
-                if (outBufferIndex >= 0) {
-                    ByteBuffer bb = vEncoder.getOutputBuffer(outBufferIndex);
-                    if (bb != null) {
-                        onEncodedAnnexBFrame(bb, vEbi);
-                    }
-                    vEncoder.releaseOutputBuffer(outBufferIndex, false);
-                } else {
-                    break;
-                }
+            vEncoder.queueInputBuffer(inBufferIndex, 0, yuvFrame.length, pts, 0);
+        }
+
+        ByteBuffer bb;
+        for (; ; ) {
+            //MediaCodec.BufferInfo vEbi = new MediaCodec.BufferInfo();
+            int outBufferIndex = vEncoder.dequeueOutputBuffer(vEbi, 0);
+            if (outBufferIndex >= 0) {
+                bb = vEncoder.getOutputBuffer(outBufferIndex);
+                assert bb != null;
+                onEncodedAnnexBFrame(bb, vEbi);
+
+                vEncoder.releaseOutputBuffer(outBufferIndex, false);
+            } else {
+                break;
             }
         }
+
     }
 
     /**
@@ -389,58 +394,30 @@ public class SrsEncoder {
         if (flvMuxer == null || aEncoder == null) {
             return;
         }
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.LOLLIPOP) {
-            AtomicInteger videoFrameCacheNumber = flvMuxer.getVideoFrameCacheNumber();
-            if (videoFrameCacheNumber != null && videoFrameCacheNumber.get() < vGOP) {
-                ByteBuffer[] inBuffers = aEncoder.getInputBuffers();
-                ByteBuffer[] outBuffers = aEncoder.getOutputBuffers();
+        AtomicInteger videoFrameCacheNumber = flvMuxer.getVideoFrameCacheNumber();
 
-                int inBufferIndex = aEncoder.dequeueInputBuffer(-1);
-                if (inBufferIndex >= 0) {
-                    ByteBuffer bb = inBuffers[inBufferIndex];
-                    bb.clear();
+        if (videoFrameCacheNumber != null && videoFrameCacheNumber.get() < vGOP) {
+            int inBufferIndex = aEncoder.dequeueInputBuffer(-1);
+            if (inBufferIndex >= 0) {
+                ByteBuffer bb = aEncoder.getInputBuffer(inBufferIndex);
+                if (bb != null) {
                     bb.put(data, 0, size);
-                    long pts = System.nanoTime() / 1000 - mPresentTime;
-                    aEncoder.queueInputBuffer(inBufferIndex, 0, size, pts, 0);
                 }
-                MediaCodec.BufferInfo aEbi = new MediaCodec.BufferInfo();
-                for (; ; ) {
-
-                    int outBufferIndex = aEncoder.dequeueOutputBuffer(aEbi, 0);
-                    if (outBufferIndex >= 0) {
-                        ByteBuffer bb = outBuffers[outBufferIndex];
-                        onEncodedAacFrame(bb, aEbi);
-                        aEncoder.releaseOutputBuffer(outBufferIndex, false);
-                    } else {
-                        break;
-                    }
-                }
+                long pts = System.nanoTime() / 1000 - mPresentTime;
+                aEncoder.queueInputBuffer(inBufferIndex, 0, size, pts, 0);
             }
-        } else {
-            AtomicInteger videoFrameCacheNumber = flvMuxer.getVideoFrameCacheNumber();
-            if (videoFrameCacheNumber != null && videoFrameCacheNumber.get() < vGOP) {
-                int inBufferIndex = aEncoder.dequeueInputBuffer(-1);
-                if (inBufferIndex >= 0) {
-                    ByteBuffer bb = aEncoder.getInputBuffer(inBufferIndex);
-                    if (bb != null) {
-                        bb.put(data, 0, size);
-                    }
-                    long pts = System.nanoTime() / 1000 - mPresentTime;
-                    aEncoder.queueInputBuffer(inBufferIndex, 0, size, pts, 0);
-                }
-                MediaCodec.BufferInfo aEbi = new MediaCodec.BufferInfo();
-                for (; ; ) {
+            MediaCodec.BufferInfo aEbi = new MediaCodec.BufferInfo();
+            for (; ; ) {
 
-                    int outBufferIndex = aEncoder.dequeueOutputBuffer(aEbi, 0);
-                    if (outBufferIndex >= 0) {
-                        ByteBuffer bb = aEncoder.getOutputBuffer(outBufferIndex);
-                        if (bb != null) {
-                            onEncodedAacFrame(bb, aEbi);
-                        }
-                        aEncoder.releaseOutputBuffer(outBufferIndex, false);
-                    } else {
-                        break;
+                int outBufferIndex = aEncoder.dequeueOutputBuffer(aEbi, 0);
+                if (outBufferIndex >= 0) {
+                    ByteBuffer bb = aEncoder.getOutputBuffer(outBufferIndex);
+                    if (bb != null) {
+                        onEncodedAacFrame(bb, aEbi);
                     }
+                    aEncoder.releaseOutputBuffer(outBufferIndex, false);
+                } else {
+                    break;
                 }
             }
         }

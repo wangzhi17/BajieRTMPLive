@@ -505,14 +505,14 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
     private final RtmpHandler.RtmpListener rtmpListener = new RtmpHandler.RtmpListener() {
         @Override
         public void onRtmpConnecting(String msg) {
-            //Logger.v("onRtmpConnecting:" + msg);
-            ToastUtils.toast(ExternalCameraLiveActivity.this, "onRtmpConnecting");
+            Logger.v("onRtmpConnecting:" + msg);
+            ToastUtils.toast(ExternalCameraLiveActivity.this, msg);
         }
 
         @Override
         public void onRtmpConnected(String msg) {
-            //Logger.v("onRtmpConnected:" + msg);
-            ToastUtils.toast(ExternalCameraLiveActivity.this, "onRtmpConnected");
+            Logger.v("onRtmpConnected:" + msg);
+            ToastUtils.toast(ExternalCameraLiveActivity.this, msg);
         }
 
         @Override

@@ -54,7 +54,7 @@ public class SrsCameraGLSurfaceView extends GLSurfaceView implements GLSurfaceVi
 
     private Thread worker;
     private final Object writeLock = new Object();
-    private ConcurrentLinkedQueue<IntBuffer> mGLIntBufferCache = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<IntBuffer> mGLIntBufferCache = new ConcurrentLinkedQueue<>();
     private PreviewCallback mPrevCb;
     private ErrorCallback errorCallback;
 
@@ -80,12 +80,7 @@ public class SrsCameraGLSurfaceView extends GLSurfaceView implements GLSurfaceVi
 
         mOESTextureId = OpenGLUtils.getExternalOESTextureID();
         surfaceTexture = new SurfaceTexture(mOESTextureId);
-        surfaceTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
-            @Override
-            public void onFrameAvailable(SurfaceTexture surfaceTexture) {
-                requestRender();
-            }
-        });
+        surfaceTexture.setOnFrameAvailableListener(surfaceTexture -> requestRender());
 
         // For camera preview on activity create
         if (mCamera != null) {

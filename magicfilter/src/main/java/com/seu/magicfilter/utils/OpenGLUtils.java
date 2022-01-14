@@ -30,7 +30,7 @@ public class OpenGLUtils {
     public static int loadTexture(Bitmap img, int usedTexId, boolean recyled) {
         if (img == null)
             return NO_TEXTURE;
-        int textures[] = new int[1];
+        int[] textures = new int[1];
         if (usedTexId == NO_TEXTURE) {
             GLES20.glGenTextures(1, textures, 0);
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textures[0]);
@@ -57,7 +57,7 @@ public class OpenGLUtils {
     public static int loadTexture(Buffer data, int width, int height, int usedTexId) {
         if (data == null)
             return NO_TEXTURE;
-        int textures[] = new int[1];
+        int[] textures = new int[1];
         if (usedTexId == NO_TEXTURE) {
             GLES20.glGenTextures(1, textures, 0);
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textures[0]);
@@ -83,7 +83,7 @@ public class OpenGLUtils {
     public static int loadTexture(Buffer data, int width, int height, int usedTexId, int type) {
         if (data == null)
             return NO_TEXTURE;
-        int textures[] = new int[1];
+        int[] textures = new int[1];
         if (usedTexId == NO_TEXTURE) {
             GLES20.glGenTextures(1, textures, 0);
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textures[0]);

@@ -2,7 +2,7 @@ package com.bajie.uvccamera.rtmplive.application;
 
 
 
-import androidx.multidex.MultiDexApplication;
+import android.app.Application;
 
 import com.orhanobut.logger.AndroidLogAdapter;
 import com.orhanobut.logger.Logger;
@@ -12,7 +12,7 @@ import com.orhanobut.logger.Logger;
  * <p>
  * Created by YoungWu on 2019/7/5.
  */
-public class MyApplication extends MultiDexApplication {
+public class MyApplication extends Application {
 
     @Override
     public void onCreate() {
