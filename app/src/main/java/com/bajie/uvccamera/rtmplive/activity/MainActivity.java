@@ -42,6 +42,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
     public void initData() {
         super.initData();
         requestPermission();
+        //openExternalCameraLiveActivity();
     }
 
     /**

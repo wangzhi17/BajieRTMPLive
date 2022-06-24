@@ -39,6 +39,13 @@ public class UVCPublisher {
     private SrsMp4Muxer mMp4Muxer;
     private SrsEncoder mEncoder;
 
+    private boolean useAudio = false;
+
+
+    public void setUseAudio(boolean useAudio) {
+        this.useAudio = useAudio;
+    }
+
     public UVCPublisher(UVCCameraGLSurfaceView view) {
         mUVVCCameraView = view;
         mUVVCCameraView.setPreviewCallback((data, width, height) -> {
@@ -185,14 +192,16 @@ public class UVCPublisher {
             return;
         }
         startPreview();
-        startAudio();
+        if (useAudio)
+            startAudio();
         if (mEncoder != null && mEncoder.isEnabled()) {
             mUVVCCameraView.enableEncoding();
         }
     }
 
     private void resumeEncode() {
-        startAudio();
+        if (useAudio)
+            startAudio();
         if (mEncoder != null && mEncoder.isEnabled()) {
             mUVVCCameraView.enableEncoding();
         }

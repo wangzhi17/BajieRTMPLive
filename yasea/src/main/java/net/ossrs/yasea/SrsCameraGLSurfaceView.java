@@ -175,18 +175,15 @@ public class SrsCameraGLSurfaceView extends GLSurfaceView implements GLSurfaceVi
     }
 
     public void setFilter(final MagicFilterType type) {
-        queueEvent(new Runnable() {
-            @Override
-            public void run() {
-                if (magicFilter != null) {
-                    magicFilter.destroy();
-                }
-                magicFilter = MagicFilterFactory.initFilters(type);
-                if (magicFilter != null) {
-                    magicFilter.init(getContext().getApplicationContext());
-                    magicFilter.onInputSizeChanged(mPreviewWidth, mPreviewHeight);
-                    magicFilter.onDisplaySizeChanged(mSurfaceWidth, mSurfaceHeight);
-                }
+        queueEvent(() -> {
+            if (magicFilter != null) {
+                magicFilter.destroy();
+            }
+            magicFilter = MagicFilterFactory.initFilters(type);
+            if (magicFilter != null) {
+                magicFilter.init(getContext().getApplicationContext());
+                magicFilter.onInputSizeChanged(mPreviewWidth, mPreviewHeight);
+                magicFilter.onDisplaySizeChanged(mSurfaceWidth, mSurfaceHeight);
             }
         });
         requestRender();

@@ -5,6 +5,9 @@ import android.graphics.Color;
 import android.hardware.usb.UsbDevice;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
+import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -14,12 +17,14 @@ import android.widget.TextView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bajie.uvccamera.rtmplive.OpenCameraEntity;
 import com.bajie.uvccamera.rtmplive.R;
 import com.bajie.uvccamera.rtmplive.base.BaseActivity;
 import com.bajie.uvccamera.rtmplive.util.TestConfig;
 import com.bajie.uvccamera.rtmplive.util.ToastUtils;
 import com.github.faucamp.simplertmp.RtmpHandler;
 import com.orhanobut.logger.Logger;
+import com.serenegiant.usb.DeviceFilter;
 import com.serenegiant.usb.USBMonitor;
 import com.seu.magicfilter.utils.MagicFilterType;
 import com.youngwu.live.UVCCameraGLSurfaceView;
@@ -43,7 +48,9 @@ import java.util.Locale;
  * Created by YoungWu on 2019/7/8.
  */
 public class ExternalCameraLiveActivity extends BaseActivity implements View.OnClickListener {
-    private UVCCameraGLSurfaceView uvcCameraGLSurfaceView;
+    private String TAG = "ExternalCameraLiveActivity";
+    private UVCCameraGLSurfaceView uvcCameraGLSurfaceViewLeft;
+    private UVCCameraGLSurfaceView uvcCameraGLSurfaceViewRight;
     private TextView tv_info;
     private Button btn_start;
     private Button btn_soft_encoder;
@@ -53,10 +60,10 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
     private Button btn_high_definition;
     private Button btn_full_high_definition;
     private Button btn_close_choose_definition;
-    private Button btn_magic_filter;
+    //private Button btn_magic_filter;
     private LinearLayout ll_choose_magic_filter;
     private RecyclerView rv_magic_filter_list;
-    private Button btn_close_choose_magic_filter;
+    //private Button btn_close_choose_magic_filter;
     private Button btn_send_video_only;
     private LinearLayout ll_choose_transform_type;
     private Button btn_transform_audio;
@@ -67,9 +74,9 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
 
     private USBMonitor usbMonitor;
     private USBMonitor.UsbControlBlock mCtrlBlock;
-    private UVCPublisher publisher;
-    private final Handler handler = new Handler();
-    private int flag = 0;
+    private final List<OpenCameraEntity> openCameraEntityList = new ArrayList<>();
+    private UVCPublisher publisherLeft;
+    private UVCPublisher publisherRight;
 
     private int currentPreviewWidth;
     private int currentPreviewHeight;
@@ -85,7 +92,8 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
 
     @Override
     public void initView(Object obj) {
-        uvcCameraGLSurfaceView = findViewById(R.id.uvcCameraView);
+        uvcCameraGLSurfaceViewLeft = findViewById(R.id.uvcCameraViewLeft);
+        uvcCameraGLSurfaceViewRight = findViewById(R.id.uvcCameraViewRight);
         tv_info = findViewById(R.id.tv_info);
         btn_start = findViewById(R.id.btn_start);
         btn_soft_encoder = findViewById(R.id.btn_soft_encoder);
@@ -95,10 +103,10 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
         btn_high_definition = findViewById(R.id.btn_high_definition);
         btn_full_high_definition = findViewById(R.id.btn_full_high_definition);
         btn_close_choose_definition = findViewById(R.id.btn_close_choose_definition);
-        btn_magic_filter = findViewById(R.id.btn_magic_filter);
+        //btn_magic_filter = findViewById(R.id.btn_magic_filter);
         ll_choose_magic_filter = findViewById(R.id.ll_choose_magic_filter);
         rv_magic_filter_list = findViewById(R.id.rv_magic_filter_list);
-        btn_close_choose_magic_filter = findViewById(R.id.btn_close_choose_magic_filter);
+        //btn_close_choose_magic_filter = findViewById(R.id.btn_close_choose_magic_filter);
         btn_send_video_only = findViewById(R.id.btn_send_video_only);
         ll_choose_transform_type = findViewById(R.id.ll_choose_transform_type);
         btn_transform_audio = findViewById(R.id.btn_transform_audio);
@@ -115,7 +123,7 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
 
         usbMonitor = new USBMonitor(this, onDeviceConnectListener);
         initUVCPublisher();
-        initMagicFilterList();
+        //initMagicFilterList();
     }
 
     private final USBMonitor.OnDeviceConnectListener onDeviceConnectListener = new USBMonitor.OnDeviceConnectListener() {
@@ -123,7 +131,18 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
         public void onAttach(UsbDevice device) {
             Logger.v("USBMonitor:onAttach");
             //请求获取外部USB设备临时权限
-            usbMonitor.requestPermission(device);
+            List<DeviceFilter> deviceFilterList =
+                    DeviceFilter.getDeviceFilters(ExternalCameraLiveActivity.this, R.xml.device_filter);
+            List<UsbDevice> usbDeviceList = usbMonitor.getDeviceList(deviceFilterList);
+
+            for (UsbDevice usbDevice : usbDeviceList) {
+                if (usbDevice.getDeviceName().equals(device.getDeviceName())) {
+                    //if (640 == device.getProductId() && usbDevice.getDeviceName().equals(device.getDeviceName())) {
+                    usbMonitor.requestPermission(usbDevice);
+                    Log.e(TAG, "onAttach: " + device.getDeviceName());
+                }
+            }
+
         }
 
         @Override
@@ -134,13 +153,28 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
         @Override
         public void onConnect(UsbDevice device, USBMonitor.UsbControlBlock ctrlBlock, boolean createNew) {
             Logger.v("USBMonitor:onConnect");
+            OpenCameraEntity entity = new OpenCameraEntity();
+            entity.setCtrlBlock(ctrlBlock);
             if (mCtrlBlock == null) {
                 mCtrlBlock = ctrlBlock;
                 runOnUiThread(() -> {
                     btn_start.setText("结束直播");
-                    startLive(mCtrlBlock);
+                    startLive(ctrlBlock, publisherLeft, TestConfig.TEST_Left);
                 });
+
+                entity.setPublisher(publisherLeft);
+                entity.setUrl(TestConfig.TEST_Left);
+                openCameraEntityList.add(entity);
+                return;
             }
+            runOnUiThread(() -> {
+                btn_start.setText("结束直播");
+                startLive(ctrlBlock, publisherRight, TestConfig.TEST_Right);
+
+            });
+            entity.setPublisher(publisherRight);
+            entity.setUrl(TestConfig.TEST_Right);
+            openCameraEntityList.add(entity);
         }
 
         @Override
@@ -152,6 +186,10 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
                     btn_start.setText("开始直播");
                     stopLive();
                 });
+                for (OpenCameraEntity entity : openCameraEntityList) {
+                    if (ctrlBlock == entity.getCtrlBlock())
+                        openCameraEntityList.remove(entity);
+                }
             }
         }
 
@@ -172,313 +210,152 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
         currentEncodeType = 0;
         currentVideoMode = 2;
 
-        publisher = new UVCPublisher(uvcCameraGLSurfaceView);
-        publisher.setEncodeHandler(new SrsEncodeHandler(srsEncodeListener));
-        publisher.setRecordHandler(new SrsRecordHandler(srsRecordListener));
-        publisher.setRtmpHandler(new RtmpHandler(rtmpListener));
-        publisher.setErrorCallback(errorCallback);
-    }
-
-    private final Runnable runnable = new Runnable() {
-        @Override
-        public void run() {
-            if (flag % 2 == 0) {
-                tv_info.setTextColor(Color.RED);
-            } else {
-                tv_info.setTextColor(Color.BLUE);
-            }
-            flag++;
-            tv_info.setText("帧率：");
-            tv_info.append(String.format(Locale.CHINESE, "%.2f", publisher.getSamplingFps()));
-            tv_info.append("fps");
-            handler.postDelayed(runnable, 1000);
-        }
-    };
-
-    /**
-     * 初始化滤镜效果
-     */
-    private void initMagicFilterList() {
-        List<MagicFilterType> list = new ArrayList<>();
-        list.add(MagicFilterType.NONE);
-        list.add(MagicFilterType.SUNRISE);
-        list.add(MagicFilterType.SUNSET);
-        list.add(MagicFilterType.WHITECAT);
-        list.add(MagicFilterType.BLACKCAT);
-        list.add(MagicFilterType.SKINWHITEN);
-        list.add(MagicFilterType.BEAUTY);
-        list.add(MagicFilterType.HEALTHY);
-        list.add(MagicFilterType.ROMANCE);
-        list.add(MagicFilterType.SAKURA);
-        list.add(MagicFilterType.WARM);
-        list.add(MagicFilterType.ANTIQUE);
-        list.add(MagicFilterType.NOSTALGIA);
-        list.add(MagicFilterType.CALM);
-        list.add(MagicFilterType.LATTE);
-        list.add(MagicFilterType.TENDER);
-        list.add(MagicFilterType.COOL);
-        list.add(MagicFilterType.EMERALD);
-        list.add(MagicFilterType.EVERGREEN);
-        list.add(MagicFilterType.SKETCH);
-        list.add(MagicFilterType.AMARO);
-        list.add(MagicFilterType.BRANNAN);
-        list.add(MagicFilterType.BROOKLYN);
-        list.add(MagicFilterType.EARLYBIRD);
-        list.add(MagicFilterType.FREUD);
-        list.add(MagicFilterType.HUDSON);
-        list.add(MagicFilterType.INKWELL);
-        list.add(MagicFilterType.KEVIN);
-        list.add(MagicFilterType.N1977);
-        list.add(MagicFilterType.NASHVILLE);
-        list.add(MagicFilterType.PIXAR);
-        list.add(MagicFilterType.RISE);
-        list.add(MagicFilterType.SIERRA);
-        list.add(MagicFilterType.SUTRO);
-        list.add(MagicFilterType.TOASTER2);
-        list.add(MagicFilterType.VALENCIA);
-        list.add(MagicFilterType.WALDEN);
-        list.add(MagicFilterType.XPROII);
-
-        CommonAdapter<MagicFilterType> adapter = new CommonAdapter<MagicFilterType>(this, R.layout.layout_magic_filter_item, list) {
+        publisherLeft = new UVCPublisher(uvcCameraGLSurfaceViewLeft);
+        publisherLeft.setEncodeHandler(new SrsEncodeHandler(new SrsEncodeHandler.SrsEncodeListener() {
             @Override
-            protected void convert(ViewHolder holder, MagicFilterType magicFilterType, int position) {
-                holder.setText(R.id.btn_magic_filter_item, magicFilterType.toString());
-                if (currentMagicFilterType == magicFilterType) {
-                    holder.setTextColor(R.id.btn_magic_filter_item, Color.RED);
-                } else {
-                    holder.setTextColor(R.id.btn_magic_filter_item, Color.BLACK);
-                }
-                holder.setOnClickListener(R.id.btn_magic_filter_item, v -> {
-                    currentMagicFilterType = magicFilterType;
-                    notifyDataSetChanged();
-                    publisher.switchCameraFilter(magicFilterType);
-                    ll_choose_magic_filter.setVisibility(View.GONE);
-                });
+            public void onNetworkWeak() {
+
             }
-        };
-        rv_magic_filter_list.setLayoutManager(new LinearLayoutManager(this));
-        rv_magic_filter_list.setAdapter(adapter);
-    }
 
-    @Override
-    public void setListener() {
-        super.setListener();
-        btn_start.setOnClickListener(this);
-        btn_soft_encoder.setOnClickListener(this);
-        btn_video_hd_mode.setOnClickListener(this);
-        ll_choose_definition.setOnClickListener(this);
-        btn_normal_definition.setOnClickListener(this);
-        btn_high_definition.setOnClickListener(this);
-        btn_full_high_definition.setOnClickListener(this);
-        btn_close_choose_definition.setOnClickListener(this);
-        btn_magic_filter.setOnClickListener(this);
-        ll_choose_magic_filter.setOnClickListener(this);
-        btn_close_choose_magic_filter.setOnClickListener(this);
-        btn_send_video_only.setOnClickListener(this);
-        ll_choose_transform_type.setOnClickListener(this);
-        btn_transform_audio.setOnClickListener(this);
-        btn_transform_video.setOnClickListener(this);
-        btn_transform_audio_video.setOnClickListener(this);
-        btn_close_choose_transform_type.setOnClickListener(this);
-        btn_start_record_video.setOnClickListener(this);
-    }
+            @Override
+            public void onNetworkResume() {
 
-    @Override
-    public void onClick(View v) {
-        switch (v.getId()) {
-            case R.id.btn_start:
-                //开始或结束直播
-                if (mCtrlBlock != null) {
-                    if (btn_start.getText().toString().equals("结束直播")) {
-                        btn_start.setText("开始直播");
-                        stopLive();
-                    } else {
-                        btn_start.setText("结束直播");
-                        startLive(mCtrlBlock);
-                    }
-                }
-                break;
-            case R.id.btn_soft_encoder:
-                //切换软件编码或者硬件编码
-                if (mCtrlBlock != null) {
-                    if (btn_start.getText().toString().equals("结束直播")) {
-                        stopLive();
-                        if (btn_soft_encoder.getText().toString().equals("硬件编码")) {
-                            btn_soft_encoder.setText("软件编码");
-                            currentEncodeType = 0;
-                        } else {
-                            btn_soft_encoder.setText("硬件编码");
-                            currentEncodeType = 1;
-                        }
-                        startLive(mCtrlBlock);
-                    }
-                }
-                break;
-            case R.id.btn_video_hd_mode:
-                //打开选择分辨率
-                if (btn_start.getText().toString().equals("结束直播")) {
-                    ll_choose_definition.setVisibility(View.VISIBLE);
-                }
-                break;
-            case R.id.btn_normal_definition:
-                //标清
-                if (mCtrlBlock != null) {
-                    stopLive();
-                    currentPreviewWidth = SrsLiveConfig.STANDARD_DEFINITION_WIDTH;
-                    currentPreviewHeight = SrsLiveConfig.STANDARD_DEFINITION_HEIGHT;
-                    currentVideoMode = 1;
-                    btn_video_hd_mode.setText("标清");
-                    ll_choose_definition.setVisibility(View.GONE);
-                    startLive(mCtrlBlock);
-                }
-                break;
-            case R.id.btn_high_definition:
-                //高清
-                if (mCtrlBlock != null) {
-                    stopLive();
-                    currentPreviewWidth = SrsLiveConfig.HIGH_DEFINITION_WIDTH;
-                    currentPreviewHeight = SrsLiveConfig.HIGH_DEFINITION_HEIGHT;
-                    currentVideoMode = 2;
-                    btn_video_hd_mode.setText("高清");
-                    ll_choose_definition.setVisibility(View.GONE);
-                    startLive(mCtrlBlock);
-                }
-                break;
-            case R.id.btn_full_high_definition:
-                //全高清
-                if (mCtrlBlock != null) {
-                    stopLive();
-                    currentPreviewWidth = SrsLiveConfig.FULL_HIGH_DEFINITION_WIDTH;
-                    currentPreviewHeight = SrsLiveConfig.FULL_HIGH_DEFINITION_HEIGHT;
-                    currentVideoMode = 3;
-                    btn_video_hd_mode.setText("全高清");
-                    ll_choose_definition.setVisibility(View.GONE);
-                    startLive(mCtrlBlock);
-                }
-                break;
-            case R.id.btn_close_choose_definition:
-                //关闭选择分辨率
-                ll_choose_definition.setVisibility(View.GONE);
-                break;
-            case R.id.btn_magic_filter:
-                //打开选择滤镜
-                if (btn_start.getText().toString().equals("结束直播")) {
-                    ll_choose_magic_filter.setVisibility(View.VISIBLE);
-                }
-                break;
-            case R.id.btn_close_choose_magic_filter:
-                //关闭选择滤镜
-                ll_choose_magic_filter.setVisibility(View.GONE);
-                break;
-            case R.id.btn_send_video_only:
-                //打开选择传输类型
-                if (btn_start.getText().toString().equals("结束直播")) {
-                    ll_choose_transform_type.setVisibility(View.VISIBLE);
-                }
-                break;
-            case R.id.btn_transform_audio:
-                //只传音频
-                if (!btn_send_video_only.getText().toString().equals("音频")) {
-                    btn_send_video_only.setText("音频");
-                    currentTransformType = 1;
-                    publisher.setSendVideoOnly(false);
-                    publisher.setSendAudioOnly(true);
-                }
-                ll_choose_transform_type.setVisibility(View.GONE);
-                break;
-            case R.id.btn_transform_video:
-                //只传视频
-                if (!btn_send_video_only.getText().toString().equals("视频")) {
-                    btn_send_video_only.setText("视频");
-                    currentTransformType = 2;
-                    publisher.setSendVideoOnly(true);
-                    publisher.setSendAudioOnly(false);
-                }
-                ll_choose_transform_type.setVisibility(View.GONE);
-                break;
-            case R.id.btn_transform_audio_video:
-                //音频+视频
-                if (!btn_send_video_only.getText().toString().equals("音频+视频")) {
-                    btn_send_video_only.setText("音频+视频");
-                    currentTransformType = 3;
-                    publisher.setSendVideoOnly(false);
-                    publisher.setSendAudioOnly(false);
-                }
-                ll_choose_transform_type.setVisibility(View.GONE);
-                break;
-            case R.id.btn_close_choose_transform_type:
-                //关闭选择传输类型
-                ll_choose_transform_type.setVisibility(View.GONE);
-                break;
-            case R.id.btn_start_record_video:
-                //录制视频
-                if (btn_start.getText().toString().equals("结束直播")) {
-                    if (btn_start_record_video.getText().toString().equals("结束录制")) {
-                        btn_start_record_video.setText("开始录制");
-                        publisher.stopRecord();
-                    } else {
-                        btn_start_record_video.setText("结束录制");
-                        publisher.startRecord(Environment.getExternalStorageDirectory().getPath() + "/test.mp4");
-                    }
-                }
-                break;
-        }
-    }
+            }
 
-    /**
-     * 开始直播
-     */
-    private void startLive(USBMonitor.UsbControlBlock ctrlBlock) {
-        publisher.openCamera(ctrlBlock);
-        publisher.setPreviewResolution(currentPreviewWidth, currentPreviewHeight);
-        publisher.setOutputResolution(currentPreviewWidth, currentPreviewHeight);
-        publisher.setScreenOrientation(Configuration.ORIENTATION_LANDSCAPE);
-        publisher.switchCameraFilter(currentMagicFilterType);
-        if (currentVideoMode == 1) {
-            publisher.setVideoSmoothMode();
-        } else if (currentVideoMode == 2) {
-            publisher.setVideoHDMode();
-        } else if (currentVideoMode == 3) {
-            publisher.setVideoFullHDMode();
-        }
-        if (currentEncodeType == 0) {
-            publisher.switchToHardEncoder();
-        } else if (currentEncodeType == 1) {
-            publisher.switchToSoftEncoder();
-        }
-        if (currentTransformType == 1) {
-            publisher.setSendAudioOnly(true);
-            publisher.setSendVideoOnly(false);
-        } else if (currentTransformType == 2) {
-            publisher.setSendAudioOnly(false);
-            publisher.setSendVideoOnly(true);
-        } else if (currentTransformType == 3) {
-            publisher.setSendAudioOnly(false);
-            publisher.setSendVideoOnly(false);
-        }
+            @Override
+            public void onEncodeIllegalArgumentException(IllegalArgumentException e) {
+                Logger.e(e, "onEncodeIllegalArgumentException");
+                //ToastUtils.toast(ExternalCameraLiveActivity.this, "onEncodeIllegalArgumentException");
+                handleException();
+            }
+        }));
+        publisherLeft.setRecordHandler(new SrsRecordHandler(new SrsRecordHandler.SrsRecordListener() {
+            @Override
+            public void onRecordPause() {
 
-        publisher.startPublish(TestConfig.TEST_URL);
-        handler.post(runnable);
-    }
+            }
 
-    /**
-     * 结束直播
-     */
-    private void stopLive() {
-        if (btn_start_record_video.getText().toString().equals("结束录制")) {
-            btn_start_record_video.setText("开始录制");
-            publisher.stopRecord();
-        }
-        new Thread(() -> publisher.stopPublish()).start();
-        handler.removeCallbacksAndMessages(null);
-    }
+            @Override
+            public void onRecordResume() {
 
-    /**
-     * 处理异常情况
-     */
-    private void handleException() {
-        btn_start.setText("开始直播");
-        stopLive();
+            }
+
+            @Override
+            public void onRecordStarted(String msg) {
+
+            }
+
+            @Override
+            public void onRecordFinished(String msg) {
+
+            }
+
+            @Override
+            public void onRecordIllegalArgumentException(IllegalArgumentException e) {
+
+            }
+
+            @Override
+            public void onRecordIOException(IOException e) {
+
+            }
+        }));
+        publisherLeft.setRtmpHandler(new RtmpHandler(new RtmpHandler.RtmpListener() {
+            @Override
+            public void onRtmpConnecting(String msg) {
+                Logger.v("onRtmpConnecting:" + msg);
+                //ToastUtils.toast(ExternalCameraLiveActivity.this, msg);
+            }
+
+            @Override
+            public void onRtmpConnected(String msg) {
+                Logger.v("onRtmpConnected:" + msg);
+                ToastUtils.toast(ExternalCameraLiveActivity.this, msg);
+            }
+
+            @Override
+            public void onRtmpVideoStreaming() {
+//            Logger.e("onRtmpVideoStreaming");
+            }
+
+            @Override
+            public void onRtmpAudioStreaming() {
+//            Logger.e("onRtmpAudioStreaming");
+            }
+
+            @Override
+            public void onRtmpStopped() {
+                //Logger.v("onRtmpStopped");
+            }
+
+            @Override
+            public void onRtmpDisconnected() {
+                //Logger.v("onRtmpDisconnected");
+            }
+
+            @Override
+            public void onRtmpVideoFpsChanged(double fps) {
+//            Logger.e("onRtmpVideoFpsChanged:" + fps + "fps");
+                Message message = Message.obtain();
+                message.what = 0;
+                message.obj = fps;
+                Log.e(TAG, "红色，FPS:" + fps);
+                handler.sendMessageDelayed(message, 10);
+            }
+
+            @Override
+            public void onRtmpVideoBitrateChanged(double bitrate) {
+//            int rate = (int) bitrate / 1000;
+//            if (rate > 0) {
+//                Logger.e("onRtmpVideoBitrateChanged:" + rate + "kbps");
+//            } else {
+//                Logger.e("onRtmpVideoBitrateChanged:" + bitrate + "bps");
+//            }
+            }
+
+            @Override
+            public void onRtmpAudioBitrateChanged(double bitrate) {
+//            int rate = (int) bitrate / 1000;
+//            if (rate > 0) {
+//                Logger.e("onRtmpAudioBitrateChanged:" + rate + "kbps");
+//            } else {
+//                Logger.e("onRtmpAudioBitrateChanged:" + bitrate + "bps");
+//            }
+            }
+
+            @Override
+            public void onRtmpSocketException(SocketException e) {
+                Logger.e(e, "onRtmpSocketException");
+                handleException();
+                ToastUtils.toast(ExternalCameraLiveActivity.this, "onRtmpSocketException");
+            }
+
+            @Override
+            public void onRtmpIOException(IOException e) {
+                Logger.e(e, "onRtmpIOException");
+                handleException();
+                ToastUtils.toast(ExternalCameraLiveActivity.this, "onRtmpIOException");
+            }
+
+            @Override
+            public void onRtmpIllegalArgumentException(IllegalArgumentException e) {
+                Logger.e(e, "onRtmpIllegalArgumentException");
+                handleException();
+            }
+
+            @Override
+            public void onRtmpIllegalStateException(IllegalStateException e) {
+                Logger.e(e, "onRtmpIllegalStateException");
+                handleException();
+            }
+        }));
+        publisherLeft.setErrorCallback(error -> handleException());
+
+        publisherRight = new UVCPublisher(uvcCameraGLSurfaceViewRight);
+        publisherRight.setEncodeHandler(new SrsEncodeHandler(srsEncodeListener));
+        publisherRight.setRecordHandler(new SrsRecordHandler(srsRecordListener));
+        publisherRight.setRtmpHandler(new RtmpHandler(rtmpListener));
+        publisherRight.setErrorCallback(errorCallback);
     }
 
     private final SrsEncodeHandler.SrsEncodeListener srsEncodeListener = new SrsEncodeHandler.SrsEncodeListener() {
@@ -506,7 +383,7 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
         @Override
         public void onRtmpConnecting(String msg) {
             Logger.v("onRtmpConnecting:" + msg);
-            ToastUtils.toast(ExternalCameraLiveActivity.this, msg);
+            //ToastUtils.toast(ExternalCameraLiveActivity.this, msg);
         }
 
         @Override
@@ -538,6 +415,11 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
         @Override
         public void onRtmpVideoFpsChanged(double fps) {
 //            Logger.e("onRtmpVideoFpsChanged:" + fps + "fps");
+            Message message = Message.obtain();
+            message.what = 1;
+            message.obj = fps;
+            Log.e(TAG, "蓝色，FPS:" + fps);
+            handler.sendMessageDelayed(message, 10);
         }
 
         @Override
@@ -623,6 +505,344 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
 
     private final UVCCameraGLSurfaceView.ErrorCallback errorCallback = error -> handleException();
 
+    private final Handler handler = new Handler(Looper.getMainLooper()) {
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            switch (msg.what) {
+                case 0:
+
+                    tv_info.setText("帧率：");
+                    tv_info.append(msg.obj.toString());
+                    tv_info.append("fps");
+                    tv_info.setTextColor(Color.RED);
+                    break;
+                case 1:
+
+                    tv_info.setText("帧率：");
+                    tv_info.append(msg.obj.toString());
+                    tv_info.append("fps");
+                    tv_info.setTextColor(Color.BLUE);
+                    break;
+            }
+        }
+    };
+
+    /**
+     * 初始化滤镜效果
+     */
+    private void initMagicFilterList() {
+        List<MagicFilterType> list = new ArrayList<>();
+        list.add(MagicFilterType.NONE);
+        list.add(MagicFilterType.SUNRISE);
+        list.add(MagicFilterType.SUNSET);
+        list.add(MagicFilterType.WHITECAT);
+        list.add(MagicFilterType.BLACKCAT);
+        list.add(MagicFilterType.SKINWHITEN);
+        list.add(MagicFilterType.BEAUTY);
+        list.add(MagicFilterType.HEALTHY);
+        list.add(MagicFilterType.ROMANCE);
+        list.add(MagicFilterType.SAKURA);
+        list.add(MagicFilterType.WARM);
+        list.add(MagicFilterType.ANTIQUE);
+        list.add(MagicFilterType.NOSTALGIA);
+        list.add(MagicFilterType.CALM);
+        list.add(MagicFilterType.LATTE);
+        list.add(MagicFilterType.TENDER);
+        list.add(MagicFilterType.COOL);
+        list.add(MagicFilterType.EMERALD);
+        list.add(MagicFilterType.EVERGREEN);
+        list.add(MagicFilterType.SKETCH);
+        list.add(MagicFilterType.AMARO);
+        list.add(MagicFilterType.BRANNAN);
+        list.add(MagicFilterType.BROOKLYN);
+        list.add(MagicFilterType.EARLYBIRD);
+        list.add(MagicFilterType.FREUD);
+        list.add(MagicFilterType.HUDSON);
+        list.add(MagicFilterType.INKWELL);
+        list.add(MagicFilterType.KEVIN);
+        list.add(MagicFilterType.N1977);
+        list.add(MagicFilterType.NASHVILLE);
+        list.add(MagicFilterType.PIXAR);
+        list.add(MagicFilterType.RISE);
+        list.add(MagicFilterType.SIERRA);
+        list.add(MagicFilterType.SUTRO);
+        list.add(MagicFilterType.TOASTER2);
+        list.add(MagicFilterType.VALENCIA);
+        list.add(MagicFilterType.WALDEN);
+        list.add(MagicFilterType.XPROII);
+
+        CommonAdapter<MagicFilterType> adapter = new CommonAdapter<MagicFilterType>(this, R.layout.layout_magic_filter_item, list) {
+            @Override
+            protected void convert(ViewHolder holder, MagicFilterType magicFilterType, int position) {
+                holder.setText(R.id.btn_magic_filter_item, magicFilterType.toString());
+                if (currentMagicFilterType == magicFilterType) {
+                    holder.setTextColor(R.id.btn_magic_filter_item, Color.RED);
+                } else {
+                    holder.setTextColor(R.id.btn_magic_filter_item, Color.BLACK);
+                }
+                holder.setOnClickListener(R.id.btn_magic_filter_item, v -> {
+                    currentMagicFilterType = magicFilterType;
+                    notifyDataSetChanged();
+                    publisherLeft.switchCameraFilter(magicFilterType);
+                    ll_choose_magic_filter.setVisibility(View.GONE);
+                });
+            }
+        };
+        rv_magic_filter_list.setLayoutManager(new LinearLayoutManager(this));
+        rv_magic_filter_list.setAdapter(adapter);
+    }
+
+    @Override
+    public void setListener() {
+        super.setListener();
+        btn_start.setOnClickListener(this);
+        btn_soft_encoder.setOnClickListener(this);
+        btn_video_hd_mode.setOnClickListener(this);
+        ll_choose_definition.setOnClickListener(this);
+        btn_normal_definition.setOnClickListener(this);
+        btn_high_definition.setOnClickListener(this);
+        btn_full_high_definition.setOnClickListener(this);
+        btn_close_choose_definition.setOnClickListener(this);
+        //btn_magic_filter.setOnClickListener(this);
+        ll_choose_magic_filter.setOnClickListener(this);
+        //btn_close_choose_magic_filter.setOnClickListener(this);
+        btn_send_video_only.setOnClickListener(this);
+        ll_choose_transform_type.setOnClickListener(this);
+        btn_transform_audio.setOnClickListener(this);
+        btn_transform_video.setOnClickListener(this);
+        btn_transform_audio_video.setOnClickListener(this);
+        btn_close_choose_transform_type.setOnClickListener(this);
+        btn_start_record_video.setOnClickListener(this);
+    }
+
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()) {
+            case R.id.btn_start:
+                //开始或结束直播
+                if (mCtrlBlock != null) {
+                    if (btn_start.getText().toString().equals("结束直播")) {
+                        btn_start.setText("开始直播");
+                        stopLive();
+                    } else {
+                        btn_start.setText("结束直播");
+                        for (OpenCameraEntity entity : openCameraEntityList) {
+                            startLive(entity.getCtrlBlock(), entity.getPublisher(), entity.getUrl());
+                        }
+
+                    }
+                }
+                break;
+            case R.id.btn_soft_encoder:
+                //切换软件编码或者硬件编码
+                if (mCtrlBlock != null) {
+                    if (btn_start.getText().toString().equals("结束直播")) {
+                        stopLive();
+                        if (btn_soft_encoder.getText().toString().equals("硬件编码")) {
+                            btn_soft_encoder.setText("软件编码");
+                            currentEncodeType = 0;
+                        } else {
+                            btn_soft_encoder.setText("硬件编码");
+                            currentEncodeType = 1;
+                        }
+                        for (OpenCameraEntity entity : openCameraEntityList) {
+                            startLive(entity.getCtrlBlock(), entity.getPublisher(), entity.getUrl());
+                        }
+                    }
+                }
+                break;
+            case R.id.btn_video_hd_mode:
+                //打开选择分辨率
+                if (btn_start.getText().toString().equals("结束直播")) {
+                    ll_choose_definition.setVisibility(View.VISIBLE);
+                }
+                break;
+            case R.id.btn_normal_definition:
+                //标清
+                if (mCtrlBlock != null) {
+                    stopLive();
+                    currentPreviewWidth = SrsLiveConfig.STANDARD_DEFINITION_WIDTH;
+                    currentPreviewHeight = SrsLiveConfig.STANDARD_DEFINITION_HEIGHT;
+                    currentVideoMode = 1;
+                    btn_video_hd_mode.setText("标清");
+                    ll_choose_definition.setVisibility(View.GONE);
+                    for (OpenCameraEntity entity : openCameraEntityList) {
+                        startLive(entity.getCtrlBlock(), entity.getPublisher(), entity.getUrl());
+                    }
+                }
+                break;
+            case R.id.btn_high_definition:
+                //高清
+                if (mCtrlBlock != null) {
+                    stopLive();
+                    currentPreviewWidth = SrsLiveConfig.HIGH_DEFINITION_WIDTH;
+                    currentPreviewHeight = SrsLiveConfig.HIGH_DEFINITION_HEIGHT;
+                    currentVideoMode = 2;
+                    btn_video_hd_mode.setText("高清");
+                    ll_choose_definition.setVisibility(View.GONE);
+                    for (OpenCameraEntity entity : openCameraEntityList) {
+                        startLive(entity.getCtrlBlock(), entity.getPublisher(), entity.getUrl());
+                    }
+                }
+                break;
+            case R.id.btn_full_high_definition:
+                //全高清
+                if (mCtrlBlock != null) {
+                    stopLive();
+                    currentPreviewWidth = SrsLiveConfig.FULL_HIGH_DEFINITION_WIDTH;
+                    currentPreviewHeight = SrsLiveConfig.FULL_HIGH_DEFINITION_HEIGHT;
+                    currentVideoMode = 3;
+                    btn_video_hd_mode.setText("全高清");
+                    ll_choose_definition.setVisibility(View.GONE);
+                    for (OpenCameraEntity entity : openCameraEntityList) {
+                        startLive(entity.getCtrlBlock(), entity.getPublisher(), entity.getUrl());
+                    }
+                }
+                break;
+            case R.id.btn_close_choose_definition:
+                //关闭选择分辨率
+                ll_choose_definition.setVisibility(View.GONE);
+                break;
+//            case R.id.btn_magic_filter:
+//                //打开选择滤镜
+//                if (btn_start.getText().toString().equals("结束直播")) {
+//                    ll_choose_magic_filter.setVisibility(View.VISIBLE);
+//                }
+//                break;
+//            case R.id.btn_close_choose_magic_filter:
+//                //关闭选择滤镜
+//                ll_choose_magic_filter.setVisibility(View.GONE);
+//                break;
+            case R.id.btn_send_video_only:
+                //打开选择传输类型
+                if (btn_start.getText().toString().equals("结束直播")) {
+                    ll_choose_transform_type.setVisibility(View.VISIBLE);
+                }
+                break;
+            case R.id.btn_transform_audio:
+                //只传音频
+                if (!btn_send_video_only.getText().toString().equals("音频")) {
+                    btn_send_video_only.setText("音频");
+                    currentTransformType = 1;
+                    publisherLeft.setSendVideoOnly(false);
+                    publisherLeft.setSendAudioOnly(true);
+                    publisherRight.setUseAudio(false);
+                }
+                ll_choose_transform_type.setVisibility(View.GONE);
+                break;
+            case R.id.btn_transform_video:
+                //只传视频
+                if (!btn_send_video_only.getText().toString().equals("视频")) {
+                    btn_send_video_only.setText("视频");
+                    currentTransformType = 2;
+                    publisherLeft.setSendVideoOnly(true);
+                    publisherLeft.setSendAudioOnly(false);
+                    publisherRight.setSendVideoOnly(true);
+                    publisherRight.setSendAudioOnly(false);
+                    publisherRight.setUseAudio(false);
+                }
+                ll_choose_transform_type.setVisibility(View.GONE);
+                break;
+            case R.id.btn_transform_audio_video:
+                //音频+视频
+                if (!btn_send_video_only.getText().toString().equals("音频+视频")) {
+                    btn_send_video_only.setText("音频+视频");
+                    currentTransformType = 3;
+                    publisherLeft.setSendVideoOnly(false);
+                    publisherLeft.setSendAudioOnly(false);
+                    publisherRight.setSendVideoOnly(false);
+                    publisherRight.setUseAudio(false);
+                }
+                ll_choose_transform_type.setVisibility(View.GONE);
+                break;
+            case R.id.btn_close_choose_transform_type:
+                //关闭选择传输类型
+                ll_choose_transform_type.setVisibility(View.GONE);
+                break;
+            case R.id.btn_start_record_video:
+                //录制视频
+                if (btn_start.getText().toString().equals("结束直播")) {
+                    if (btn_start_record_video.getText().toString().equals("结束录制")) {
+                        btn_start_record_video.setText("开始录制");
+                        publisherLeft.stopRecord();
+                        publisherRight.stopRecord();
+                    } else {
+                        btn_start_record_video.setText("结束录制");
+                        publisherLeft.startRecord(Environment.getExternalStorageDirectory().getPath() + "/test.mp4");
+                        publisherRight.startRecord(Environment.getExternalStorageDirectory().getPath() + "/test1.mp4");
+                    }
+                }
+                break;
+        }
+    }
+
+    /**
+     * 开始直播
+     */
+    private void startLive(USBMonitor.UsbControlBlock ctrlBlock, UVCPublisher publisher, String url) {
+        publisher.openCamera(ctrlBlock);
+        publisher.setPreviewResolution(currentPreviewWidth, currentPreviewHeight);
+        publisher.setOutputResolution(currentPreviewWidth, currentPreviewHeight);
+        publisher.setScreenOrientation(Configuration.ORIENTATION_LANDSCAPE);
+        publisher.switchCameraFilter(currentMagicFilterType);
+        if (currentVideoMode == 1) {
+            publisher.setVideoSmoothMode();
+        } else if (currentVideoMode == 2) {
+            publisher.setVideoHDMode();
+        } else if (currentVideoMode == 3) {
+            publisher.setVideoFullHDMode();
+        }
+        if (currentEncodeType == 0) {
+            publisher.switchToHardEncoder();
+        } else if (currentEncodeType == 1) {
+            publisher.switchToSoftEncoder();
+        }
+        if (currentTransformType == 1) {
+            publisher.setSendAudioOnly(true);
+            publisher.setSendVideoOnly(false);
+        } else if (currentTransformType == 2) {
+            publisher.setSendAudioOnly(false);
+            publisher.setSendVideoOnly(true);
+        } else if (currentTransformType == 3) {
+
+            publisher.setSendVideoOnly(false);
+            if (publisher == publisherLeft) {
+                publisher.setSendAudioOnly(false);
+            } else {
+                publisher.setUseAudio(false);
+            }
+        }
+
+        publisher.startPublish(url);
+
+    }
+
+    /**
+     * 结束直播
+     */
+    private void stopLive() {
+        if (btn_start_record_video.getText().toString().equals("结束录制")) {
+            btn_start_record_video.setText("开始录制");
+            publisherLeft.stopRecord();
+            publisherRight.stopRecord();
+        }
+        new Thread(() -> {
+            publisherLeft.stopPublish();
+            publisherRight.stopPublish();
+        }).start();
+        handler.removeCallbacksAndMessages(null);
+    }
+
+    /**
+     * 处理异常情况
+     */
+    private void handleException() {
+        btn_start.setText("开始直播");
+        stopLive();
+    }
+
+
     @Override
     protected void onStart() {
         super.onStart();
@@ -634,7 +854,8 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
         super.onStop();
         usbMonitor.unregister();
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        publisher.closeCamera();
+        publisherLeft.closeCamera();
+        publisherRight.closeCamera();
         usbMonitor.destroy();
     }
 
@@ -642,12 +863,14 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
     protected void onResume() {
         super.onResume();
 
-        uvcCameraGLSurfaceView.onResume();
+        uvcCameraGLSurfaceViewLeft.onResume();
         if (btn_start.getText().toString().equals("结束直播")) {
-            publisher.resumePublish();
+            publisherLeft.resumePublish();
+            publisherRight.resumePublish();
         }
         if (btn_start_record_video.getText().toString().equals("结束录制")) {
-            publisher.resumeRecord();
+            publisherLeft.resumeRecord();
+            publisherRight.resumeRecord();
         }
     }
 
@@ -655,18 +878,19 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
     protected void onPause() {
         super.onPause();
 
-        uvcCameraGLSurfaceView.onPause();
+        uvcCameraGLSurfaceViewLeft.onPause();
         if (btn_start_record_video.getText().toString().equals("结束录制")) {
-            publisher.pauseRecord();
+            publisherLeft.pauseRecord();
+            publisherRight.pauseRecord();
         }
         if (btn_start.getText().toString().equals("结束直播")) {
-            publisher.pausePublish();
+            publisherLeft.pausePublish();
+            publisherRight.pausePublish();
         }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        //System.exit(0);
     }
 }
