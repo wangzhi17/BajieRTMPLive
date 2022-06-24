@@ -3,10 +3,23 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <com.youngwu.live.UVCCameraGLSurfaceView
-        android:id="@+id/uvcCameraView"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <com.youngwu.live.UVCCameraGLSurfaceView
+            android:id="@+id/uvcCameraViewLeft"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="match_parent" />
+
+        <com.youngwu.live.UVCCameraGLSurfaceView
+            android:id="@+id/uvcCameraViewRight"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="match_parent" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/tv_info"
@@ -42,12 +55,12 @@
                 android:text="高清"
                 android:textSize="20sp" />
 
-            <Button
-                android:id="@+id/btn_magic_filter"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:text="滤镜"
-                android:textSize="20sp" />
+<!--            <Button-->
+<!--                android:id="@+id/btn_magic_filter"-->
+<!--                android:layout_width="wrap_content"-->
+<!--                android:layout_height="match_parent"-->
+<!--                android:text="滤镜"-->
+<!--                android:textSize="20sp" />-->
 
             <Button
                 android:id="@+id/btn_send_video_only"
@@ -56,6 +69,7 @@
                 android:layout_weight="1"
                 android:text="视频+音频"
                 android:textSize="20sp" />
+
             <Button
                 android:id="@+id/btn_soft_encoder"
                 android:layout_width="0dp"
@@ -63,6 +77,7 @@
                 android:layout_weight="1"
                 android:text="软件解码"
                 android:textSize="20sp" />
+
             <Button
                 android:id="@+id/btn_start_record_video"
                 android:layout_width="wrap_content"

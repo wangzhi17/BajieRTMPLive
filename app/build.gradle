@@ -16,6 +16,14 @@ android {
         versionName "1.0.0"
 
     }
+    splits {
+        abi{
+            reset()
+            enable true
+            universalApk false
+            include "armeabi-v7a", "x86", "arm64-v8a", "x86_64"
+        }
+    }
     signingConfigs {
         release {
             storeFile file('/Users/wangzhi/Downloads/project/my.jks')

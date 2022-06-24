@@ -195,7 +195,7 @@ public class UVCCamera {
                     mCtrlBlock.getDevNum(),
                     getUSBFSName(mCtrlBlock));
         } catch (Exception e) {
-            Log.w(TAG, e);
+            e.printStackTrace();
             result = -1;
         }
         if (result != 0) {
@@ -827,7 +827,7 @@ public class UVCCamera {
         }
     }
 
-//================================================================================
+    //================================================================================
     public void setPowerlineFrequency(int frequency) {
         if (mNativePtr != 0)
             nativeSetPowerlineFrequency(mNativePtr, frequency);
@@ -943,7 +943,7 @@ public class UVCCamera {
         }
     }
 
-//================================================================================
+    //================================================================================
     public synchronized void updateCameraParams() {
         if (mNativePtr != 0) {
             if ((mControlSupports == 0) || (mProcSupports == 0)) {
