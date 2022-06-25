@@ -440,7 +440,7 @@ public class InternalCameraLiveActivity extends BaseActivity implements View.OnC
             publisher.setSendVideoOnly(false);
         }
 
-        publisher.startPublish(TestConfig.TEST_Left);
+        publisher.startPublish(TestConfig.TEST_URL_Left);
         handler.post(runnable);
     }
 

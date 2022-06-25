@@ -159,21 +159,21 @@ public class ExternalCameraLiveActivity extends BaseActivity implements View.OnC
                 mCtrlBlock = ctrlBlock;
                 runOnUiThread(() -> {
                     btn_start.setText("结束直播");
-                    startLive(ctrlBlock, publisherLeft, TestConfig.TEST_Left);
+                    startLive(ctrlBlock, publisherLeft, TestConfig.TEST_URL_Left);
                 });
 
                 entity.setPublisher(publisherLeft);
-                entity.setUrl(TestConfig.TEST_Left);
+                entity.setUrl(TestConfig.TEST_URL_Left);
                 openCameraEntityList.add(entity);
                 return;
             }
             runOnUiThread(() -> {
                 btn_start.setText("结束直播");
-                startLive(ctrlBlock, publisherRight, TestConfig.TEST_Right);
+                startLive(ctrlBlock, publisherRight, TestConfig.TEST_URL_Right);
 
             });
             entity.setPublisher(publisherRight);
-            entity.setUrl(TestConfig.TEST_Right);
+            entity.setUrl(TestConfig.TEST_URL_Right);
             openCameraEntityList.add(entity);
         }
 

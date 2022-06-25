@@ -1,13 +1,8 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 29
-    lintOptions {
-        checkReleaseBuilds false
-        // Or, if you prefer, you can continue to check for errors in release builds,
-        // but continue the build even when errors are found:
-        abortOnError false
-    }
+    compileSdkVersion 28
+
     defaultConfig {
         applicationId "com.bajie.uvccamera.rtmplive"
         minSdkVersion 21
@@ -16,18 +11,16 @@ android {
         versionName "1.0.0"
 
     }
-    splits {
-        abi{
-            reset()
-            enable true
-            universalApk false
-            include "armeabi-v7a", "x86", "arm64-v8a", "x86_64"
-        }
-    }
     signingConfigs {
+        debug {
+            storeFile file('/Users/admin/Downloads/project/live.jks')
+            keyAlias 'live'
+            keyPassword '123456'
+            storePassword '123456'
+        }
         release {
-            storeFile file('key0.jks')
-            keyAlias 'key0'
+            storeFile file('/Users/admin/Downloads/project/live.jks')
+            keyAlias 'live'
             keyPassword '123456'
             storePassword '123456'
         }
@@ -40,7 +33,7 @@ android {
         }
         debug {
             minifyEnabled false
-            signingConfig signingConfigs.release
+            signingConfig signingConfigs.debug
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
