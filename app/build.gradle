@@ -26,8 +26,8 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file('/Users/wangzhi/Downloads/project/my.jks')
-            keyAlias 'my'
+            storeFile file('key0.jks')
+            keyAlias 'key0'
             keyPassword '123456'
             storePassword '123456'
         }
