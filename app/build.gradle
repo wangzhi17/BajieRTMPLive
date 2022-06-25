@@ -13,16 +13,20 @@ android {
     }
     signingConfigs {
         debug {
-            storeFile file('/Users/admin/Downloads/project/live.jks')
-            keyAlias 'live'
-            keyPassword '123456'
-            storePassword '123456'
+            if (project.hasProperty('MYAPP_RELEASE_STORE_FILE')) {
+                storeFile file(MYAPP_RELEASE_STORE_FILE)
+                storePassword MYAPP_RELEASE_STORE_PASSWORD
+                keyAlias MYAPP_RELEASE_KEY_ALIAS
+                keyPassword MYAPP_RELEASE_KEY_PASSWORD
+            }
         }
         release {
-            storeFile file('/Users/admin/Downloads/project/live.jks')
-            keyAlias 'live'
-            keyPassword '123456'
-            storePassword '123456'
+            if (project.hasProperty('MYAPP_RELEASE_STORE_FILE')) {
+                storeFile file(MYAPP_RELEASE_STORE_FILE)
+                storePassword MYAPP_RELEASE_STORE_PASSWORD
+                keyAlias MYAPP_RELEASE_KEY_ALIAS
+                keyPassword MYAPP_RELEASE_KEY_PASSWORD
+            }
         }
     }
     buildTypes {
